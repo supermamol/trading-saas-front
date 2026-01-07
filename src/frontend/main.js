@@ -78,17 +78,17 @@
  
  /* ===== THEME TOGGLE BUTTON ===== */
  #theme-toggle {
-   position: fixed;
-   top: 10px;
-   right: 14px;
-   z-index: 9999;
-   background: #111827;
-   color: white;
-   border-radius: 999px;
-   padding: 6px 10px;
-   font-size: 14px;
- }
- body.theme-light #theme-toggle {
+    position: fixed;
+    top: 26px;      /* ↓ descend un peu */
+    right: 18px;    /* ← décale à gauche */
+    z-index: 9999;
+    background: #111827;
+    color: white;
+    border-radius: 999px;
+    padding: 6px 10px;
+    font-size: 14px;
+  }
+   body.theme-light #theme-toggle {
    background: #e5e7eb;
    color: #111827;
  }
