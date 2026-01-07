@@ -1,0 +1,78 @@
+/* =====================
+   DARK THEME
+===================== */
+
+body.theme-dark {
+  background: #1e1e1e;
+  color: #e6e6e6;
+}
+
+/* GoldenLayout root */
+body.theme-dark .lm_root {
+  background: #1e1e1e;
+}
+
+/* Panels content */
+body.theme-dark .lm_content {
+  background: #1f2428;
+  color: #e6e6e6;
+}
+
+/* Tabs bar */
+body.theme-dark .lm_tabs {
+  background: #252a2f;
+}
+
+/* Tabs */
+body.theme-dark .lm_tab {
+  background: #2b3036;
+  color: #bfc7cf;
+}
+
+body.theme-dark .lm_tab.lm_active {
+  background: #323842;
+  color: #ffffff;
+  font-weight: 600;
+}
+
+/* Splitters */
+body.theme-dark .lm_splitter {
+  background: #3a3f45;
+}
+
+/* =====================
+   LIGHT THEME
+===================== */
+
+body.theme-light {
+  background: #f3f4f6;
+  color: #111827;
+}
+
+body.theme-light .lm_root {
+  background: #f3f4f6;
+}
+
+body.theme-light .lm_content {
+  background: #ffffff;
+  color: #111827;
+}
+
+body.theme-light .lm_tabs {
+  background: #e5e7eb;
+}
+
+body.theme-light .lm_tab {
+  background: #d1d5db;
+  color: #1f2937;
+}
+
+body.theme-light .lm_tab.lm_active {
+  background: #ffffff;
+  color: #000000;
+  font-weight: 600;
+}
+
+body.theme-light .lm_splitter {
+  background: #cbd5e1;
+}
