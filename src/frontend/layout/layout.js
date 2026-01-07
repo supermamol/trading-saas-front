@@ -13,6 +13,34 @@ import { registerStrategyDetailPanel } from "../panels/strategyDetail.panel.js";
 import { registerNodeRedPanel } from "../panels/nodered.panel.js";
 import { registerTVChartsPanel } from "../panels/tvcharts.panel.js";
 
+function openStrategyDetail(layout, strategyId) {
+    const id = "strategy-detail::" + strategyId;
+  
+    const existing = layout.root.getItemsById(id)[0];
+    if (existing) {
+      existing.parent.setActiveContentItem(existing);
+      return;
+    }
+  
+    layout.root.contentItems[0].addChild({
+      type: "component",
+      componentName: "StrategyDetail",
+      componentState: { strategyId },
+      title: "Strategy · " + strategyId,
+      id
+    });
+  }
+  
+function closeStrategyDetail(layout, strategyId) {
+    const id = "strategy-detail::" + strategyId;
+
+    const items = layout.root.getItemsById(id);
+    items.forEach(item => {
+        item.remove();
+    });
+}
+  
+
 export function createLayout() {
   const root = document.getElementById("layout");
 
@@ -60,6 +88,17 @@ export function createLayout() {
 
   layout.init();
 
+  // écoute des events venant des Web Components
+  document.addEventListener("open-strategy-detail", e => {
+    const { strategyId } = e.detail;
+    openStrategyDetail(layout, strategyId);
+  });
+  
+  document.addEventListener("strategy-deleted", e => {
+    const { strategyId } = e.detail;
+    closeStrategyDetail(layout, strategyId);
+  });
+  
   // expose pour debug / extensions futures
   window.__layout = layout;
 }
