@@ -32,13 +32,50 @@ class TvChart extends HTMLElement {
         hide_legend: false,
         allow_symbol_change: true,
       });
+
+      this.__widget.onChartReady(() => {
+        if (this.__pendingSymbol) {
+          this.__widget.setSymbol(
+            this.__pendingSymbol,
+            this.getAttribute("interval") || "60"
+          );
+          this.__pendingSymbol = null;
+        }
+      });
+      
+      this.onSetSymbol = (e) => {
+        this.setSymbol(e.detail.ticker);
+      };
+      document.addEventListener("chart-set-symbol", this.onSetSymbol);
+
     }
   
+    setSymbol(ticker) {
+        this.__pendingSymbol = ticker;
+      
+        if (!this.__widget) return;
+      
+        this.__widget.onChartReady(() => {
+          this.__widget.setSymbol(
+            ticker,
+            this.getAttribute("interval") || "60",
+            () => {
+              console.log("Chart switched to", ticker);
+            }
+          );
+        });
+      }
+      
+      
+      
     disconnectedCallback() {
       // GL 1.5 détruit/recrée parfois : on nettoie le DOM
       this.innerHTML = "";
       this.__widget = null;
       this.__inited = false;
+
+      document.removeEventListener("chart-set-symbol", this.onSetSymbol);
+
     }
   }
   
