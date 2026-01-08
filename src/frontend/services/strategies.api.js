@@ -1,27 +1,35 @@
-let strategies = [
-    { id: "alpha", name: "Alpha" },
-    { id: "momentum", name: "Momentum" }
-  ];
-  
-  function delay(ms = 200) {
-    return new Promise(r => setTimeout(r, ms));
+const BASE_URL = "/api/strategies";
+
+// READ
+export async function getStrategies() {
+  const res = await fetch(BASE_URL);
+  if (!res.ok) {
+    throw new Error("Failed to fetch strategies");
   }
-  
-  export async function getStrategies() {
-    await delay();
-    return [...strategies];
+  return res.json();
+}
+
+// CREATE
+export async function createStrategy(name) {
+  const res = await fetch(BASE_URL, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ name })
+  });
+
+  if (!res.ok) {
+    throw new Error("Failed to create strategy");
   }
-  
-  export async function addStrategy(name) {
-    await delay();
-    const id = name.toLowerCase().replace(/\s+/g, "-");
-    const strategy = { id, name };
-    strategies.push(strategy);
-    return strategy;
+  return res.json();
+}
+
+// DELETE
+export async function deleteStrategy(id) {
+  const res = await fetch(`${BASE_URL}/${id}`, {
+    method: "DELETE"
+  });
+
+  if (!res.ok) {
+    throw new Error("Failed to delete strategy");
   }
-  
-  export async function deleteStrategy(id) {
-    await delay();
-    strategies = strategies.filter(s => s.id !== id);
-  }
-  
+}

@@ -1,6 +1,6 @@
 import {
     getStrategies,
-    addStrategy,
+    createStrategy,
     deleteStrategy
   } from "../services/strategies.api.js";
   
@@ -14,38 +14,82 @@ import {
     connectedCallback() {
       this.render();
       this.load();
+  
+      // Invalidation générique backend-safe
+      document.addEventListener("entity-changed", e => {
+        if (e.detail?.type === "strategy") {
+          this.load();
+        }
+      });
     }
+  
+    /* =========================
+       READ
+    ========================= */
   
     async load() {
-      this.strategies = await getStrategies();
-      this.renderList();
+      try {
+        this.clearError();
+        this.strategies = await getStrategies();
+        this.renderList();
+      } catch (err) {
+        console.error(err);
+        this.showError("Impossible de charger les stratégies");
+      }
     }
   
-    async onAdd() {
+    /* =========================
+       CREATE
+    ========================= */
+  
+    async onCreate() {
       const input = this.shadowRoot.getElementById("new-name");
       const name = input.value.trim();
       if (!name) return;
   
-      await addStrategy(name);
-      input.value = "";
-      this.load();
-    }
+      try {
+        await createStrategy(name);
+        input.value = "";
   
-    async onDelete(id) {
-        await deleteStrategy(id);
-      
-        // notifier le layout
+        // Invalidation globale (backend = source de vérité)
         document.dispatchEvent(
-          new CustomEvent("strategy-deleted", {
-            detail: { strategyId: id }
+          new CustomEvent("entity-changed", {
+            detail: { type: "strategy" }
           })
         );
-      
-        this.load();
+      } catch (err) {
+        console.error(err);
+        this.showError("Erreur lors de la création de la stratégie");
       }
-        
+    }
+  
+    /* =========================
+       DELETE
+    ========================= */
+  
+    async onDelete(id) {
+      if (!confirm("Supprimer cette stratégie ?")) return;
+  
+      try {
+        await deleteStrategy(id);
+  
+        // Invalidation globale
+        document.dispatchEvent(
+          new CustomEvent("entity-changed", {
+            detail: { type: "strategy", id }
+          })
+        );
+      } catch (err) {
+        console.error(err);
+        this.showError("Erreur lors de la suppression");
+      }
+    }
+  
+    /* =========================
+       SELECT (open detail)
+    ========================= */
+  
     onSelect(id) {
-      // événement global → GoldenLayout écoutera
       document.dispatchEvent(
         new CustomEvent("open-strategy-detail", {
           detail: { strategyId: id }
@@ -53,24 +97,39 @@ import {
       );
     }
   
+    /* =========================
+       RENDER
+    ========================= */
+  
     renderList() {
       const list = this.shadowRoot.getElementById("list");
       list.innerHTML = "";
   
-      this.strategies.forEach(s => {
+      if (!this.strategies.length) {
+        list.innerHTML = `<em>Aucune stratégie</em>`;
+        return;
+      }
+  
+      this.strategies.forEach(strategy => {
         const row = document.createElement("div");
         row.className = "row";
+  
         row.innerHTML = `
-          <span class="name">${s.name}</span>
+          <span class="name">${strategy.name}</span>
           <div class="actions">
-            <button class="open">↗</button>
-            <button class="delete">🗑</button>
+            <button class="open" title="Ouvrir">↗</button>
+            <button class="delete" title="Supprimer">🗑</button>
           </div>
         `;
   
-        row.querySelector(".name").onclick = () => this.onSelect(s.id);
-        row.querySelector(".open").onclick = () => this.onSelect(s.id);
-        row.querySelector(".delete").onclick = () => this.onDelete(s.id);
+        row.querySelector(".name").onclick = () =>
+          this.onSelect(strategy.id);
+  
+        row.querySelector(".open").onclick = () =>
+          this.onSelect(strategy.id);
+  
+        row.querySelector(".delete").onclick = () =>
+          this.onDelete(strategy.id);
   
         list.appendChild(row);
       });
@@ -98,6 +157,9 @@ import {
   
           .actions button {
             margin-left: 6px;
+            background: none;
+            border: none;
+            cursor: pointer;
           }
   
           .add {
@@ -109,6 +171,12 @@ import {
           input {
             flex: 1;
           }
+  
+          .error {
+            color: #ef4444;
+            margin-top: 6px;
+            font-size: 12px;
+          }
         </style>
   
         <div>
@@ -118,12 +186,26 @@ import {
             <input id="new-name" placeholder="Nouvelle stratégie" />
             <button id="add">➕</button>
           </div>
+  
+          <div id="error" class="error"></div>
         </div>
       `;
   
       this.shadowRoot
         .getElementById("add")
-        .onclick = () => this.onAdd();
+        .onclick = () => this.onCreate();
+    }
+  
+    /* =========================
+       ERRORS
+    ========================= */
+  
+    showError(msg) {
+      this.shadowRoot.getElementById("error").textContent = msg;
+    }
+  
+    clearError() {
+      this.shadowRoot.getElementById("error").textContent = "";
     }
   }
   

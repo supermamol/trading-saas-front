@@ -102,3 +102,11 @@ export function createLayout() {
   // expose pour debug / extensions futures
   window.__layout = layout;
 }
+
+export function destroyLayout() {
+    if (window.__layout) {
+      window.__layout.destroy();
+      window.__layout = null;
+    }
+  }
+  

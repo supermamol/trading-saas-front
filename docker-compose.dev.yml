@@ -1,5 +1,7 @@
+version: "3.9"
+
 services:
-  trading-saas-front:
+  front:
     container_name: trading-saas-front
     build:
       context: ./src/frontend
@@ -11,3 +13,9 @@ services:
       - /app/node_modules
     stdin_open: true
     tty: false
+    networks:
+      - trading-saas-net
+
+networks:
+  trading-saas-net:
+    external: true
