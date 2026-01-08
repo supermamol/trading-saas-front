@@ -1,20 +1,28 @@
-app-toolbar {
+  
+/* toolbar.css */
+.app-toolbar {
     position: fixed;
     top: 0;
     left: 0;
     right: 0;
+    height: 42px;
     z-index: 10000;
-  
     background: #111827;
     color: white;
-  
     border-bottom: 1px solid rgba(255,255,255,0.08);
   }
   
-  body.theme-light app-toolbar {
+  body.theme-light .app-toolbar {
     background: #f9fafb;
     color: #111827;
     border-bottom: 1px solid #e5e7eb;
+  }
+  
+  /* thème sombre */
+  body.theme-dark .app-toolbar {
+    --toolbar-bg: #111827;
+    color: white;
+    border-bottom: 1px solid rgba(255,255,255,0.08);
   }
   
   /* Décaler le workspace sous la toolbar */
@@ -22,4 +30,5 @@ app-toolbar {
     margin-top: 42px;
     height: calc(100vh - 42px);
   }
+  
   

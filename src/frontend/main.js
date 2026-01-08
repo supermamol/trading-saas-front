@@ -5,6 +5,8 @@
 // Styles globaux
 import "./styles/theme.css";
 import "./styles/toolbar.css";
+// logique de thème (JS)
+import "./ui/theme.js";
 
 // Auth
 import {

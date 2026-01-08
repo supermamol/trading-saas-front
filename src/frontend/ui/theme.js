@@ -1,11 +1,17 @@
 const STORAGE_KEY = "ui-theme";
 
 function applyTheme(theme) {
-  document.body.classList.toggle("theme-dark", theme === "dark");
-  document.body.classList.toggle("theme-light", theme === "light");
-  localStorage.setItem(STORAGE_KEY, theme);
-}
+    document.body.classList.toggle("theme-dark", theme === "dark");
+    document.body.classList.toggle("theme-light", theme === "light");
+    localStorage.setItem(STORAGE_KEY, theme);
+  
+    // 🔔 notifier TOUS les composants (Shadow DOM compris)
+    document.dispatchEvent(new CustomEvent("theme-changed", {
+      detail: { theme }
+    }));
+  }
 
+  
 // init
 const saved = localStorage.getItem(STORAGE_KEY) || "dark";
 applyTheme(saved);

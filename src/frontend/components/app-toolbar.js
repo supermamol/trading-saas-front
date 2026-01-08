@@ -5,28 +5,56 @@ class AppToolbar extends HTMLElement {
     super();
     this.attachShadow({ mode: "open" });
     this.menuOpen = false;
+
+    // bind pour removeEventListener propre si besoin plus tard
+    this.onThemeChanged = this.onThemeChanged.bind(this);
   }
 
   connectedCallback() {
     this.render();
     this.bindEvents();
+    this.syncThemeIcon();
+
+    // 🔔 écouter les changements globaux de thème
+    document.addEventListener("theme-changed", this.onThemeChanged);
+  }
+
+  disconnectedCallback() {
+    document.removeEventListener("theme-changed", this.onThemeChanged);
+  }
+
+  onThemeChanged(e) {
+    this.syncThemeIcon(e?.detail?.theme);
+  }
+
+  syncThemeIcon(forcedTheme) {
+    const icon = this.shadowRoot.getElementById("theme-icon");
+    if (!icon) return;
+
+    const theme =
+      forcedTheme ||
+      (document.body.classList.contains("theme-dark") ? "dark" : "light");
+
+    icon.textContent = theme === "dark" ? "🌙" : "🌞";
   }
 
   bindEvents() {
     const userBtn = this.shadowRoot.getElementById("user-btn");
     const logoutBtn = this.shadowRoot.getElementById("logout");
+    const themeBtn = this.shadowRoot.getElementById("theme-toggle");
 
-    userBtn.addEventListener("click", () => {
-      this.toggleMenu();
-    });
+    userBtn.addEventListener("click", () => this.toggleMenu());
 
     logoutBtn.addEventListener("click", () => {
       logout();
-      // auth-changed est dispatché par auth.service.js
-      // main.js gère la bascule vers LoginView
     });
 
-    // fermer le menu si clic en dehors
+    themeBtn.addEventListener("click", () => {
+      // ❗ le composant NE change PAS le thème lui-même
+      document.dispatchEvent(new Event("toggle-theme"));
+    });
+
+    // fermer le menu si clic extérieur
     document.addEventListener("click", (e) => {
       if (!this.contains(e.target)) {
         this.closeMenu();
@@ -112,7 +140,6 @@ class AppToolbar extends HTMLElement {
         }
 
         .menu-item:hover {
-          background: #020617;
           filter: brightness(1.3);
         }
 
@@ -129,8 +156,9 @@ class AppToolbar extends HTMLElement {
         </div>
 
         <div class="right">
-          <!-- Exemple : thème, save layout, etc. -->
-          <button title="Theme">🌗</button>
+          <button id="theme-toggle" title="Toggle theme">
+            <span id="theme-icon">🌙</span>
+          </button>
 
           <div class="user">
             <button id="user-btn" title="User menu">👤</button>
