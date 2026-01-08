@@ -13,6 +13,7 @@ import { registerStrategyDetailPanel } from "../panels/strategyDetail.panel.js";
 import { registerNodeRedPanel } from "../panels/nodered.panel.js";
 import { registerTVChartsPanel } from "../panels/tvcharts.panel.js";
 
+
 function openStrategyDetail(layout, strategyId) {
     const id = "strategy-detail::" + strategyId;
   
@@ -63,7 +64,7 @@ export function createLayout() {
                 type: "component",
                 componentName: "TVCharts",
                 title: "TV Charts",
-                height: 60
+                componentState: { symbol: "BINANCE:BTCUSDT" }
               },
               {
                 type: "component",
@@ -85,6 +86,7 @@ export function createLayout() {
   registerTVChartsPanel(layout);
   registerStrategiesPanel(layout);
   registerStrategyDetailPanel(layout);
+
 
   layout.init();
 

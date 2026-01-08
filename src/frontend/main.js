@@ -20,6 +20,7 @@ import "./views/login-view.js";
 // Components
 import "./components/app-toolbar.js";
 import "./components/strategy-list.js";
+import "./components/tv-chart.js";
 
 // Layout
 import { createLayout, destroyLayout } from "./layout/layout.js";
