@@ -1,16 +1,6 @@
 // =========================
 // Auth Service
 // =========================
-//
-// Responsabilités :
-// - gérer le token JWT
-// - exposer l’état d’authentification
-// - fournir login / logout
-// - notifier l’application des changements d’état
-//
-// AUCUNE dépendance UI
-// AUCUNE dépendance GoldenLayout
-//
 
 const TOKEN_KEY = "auth_token";
 
@@ -19,12 +9,8 @@ const TOKEN_KEY = "auth_token";
 // =========================
 
 export function initAuth() {
-  // Point d’extension futur :
-  // - vérification token expiré
-  // - refresh token
-  // - récupération user profile
-  //
-  // Pour l’instant : rien à faire
+  // À terme : refresh token, user profile, etc.
+  // Pour l’instant : rien
 }
 
 // =========================
@@ -32,7 +18,24 @@ export function initAuth() {
 // =========================
 
 export function getToken() {
-  return localStorage.getItem(TOKEN_KEY);
+  const token = localStorage.getItem(TOKEN_KEY);
+  if (!token) return null;
+
+  try {
+    const payload = JSON.parse(atob(token.split(".")[1]));
+    const isExpired = payload.exp * 1000 < Date.now();
+
+    if (isExpired) {
+      logout(); // 🔥 clé du fix
+      return null;
+    }
+
+    return token;
+  } catch (e) {
+    // token corrompu
+    logout();
+    return null;
+  }
 }
 
 function setToken(token) {
@@ -48,24 +51,18 @@ function clearToken() {
 // =========================
 
 export function isAuthenticated() {
-  return !!getToken();
+  return !!getToken(); // ⚠️ passe maintenant par la vérif exp
 }
 
 // =========================
 // Login / Logout
 // =========================
 
-/**
- * Login via API backend
- * @param {Object} credentials { email, password }
- */
 export async function login(credentials) {
   const res = await fetch("/api/auth/login", {
     method: "POST",
-    headers: {
-      "Content-Type": "application/json"
-    },
-    body: JSON.stringify(credentials)
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(credentials),
   });
 
   if (!res.ok) {
@@ -79,13 +76,9 @@ export async function login(credentials) {
   }
 
   setToken(data.token);
-
   notifyAuthChanged();
 }
 
-/**
- * Logout utilisateur
- */
 export function logout() {
   clearToken();
   notifyAuthChanged();
