@@ -325,3 +325,158 @@ ChartDatasource représente :
     tandis que les datasources sont des objets immuables, partageables
     et indépendants de toute logique d’affichage.
 
+
+    ____________________________________________
+
+
+
+1️⃣ Nature de la Datasource (origine des données)
+
+    « un ensemble de données issu d’un run jusqu’à un node backtest
+    ou bien un ticker impliqué dans un run »
+
+👉 Oui, totalement juste.
+
+On peut formuler la règle ainsi :
+
+    Une Datasource est :
+
+        soit le résultat d’un calcul (backtest, equity, indicateur…) produit par un Run
+
+        soit une source de marché (ticker) utilisée par un Run
+
+Autrement dit :
+
+    le Run est producteur
+
+    la Datasource est un artefact produit, exploitable par l’UI
+
+👉 Important :
+La Datasource n’exécute rien et ne connaît pas la logique (AST, Node‑RED).
+Elle porte uniquement le résultat et les métadonnées nécessaires à l’affichage.
+2️⃣ Représentation graphique / UX
+
+    « graphiquement, c'est un bouton qui pourra être D&D dans un chart
+    et un graphique sur un chart (qui peut aussi être retiré du chart) »
+
+👉 Parfaitement aligné avec le contrat technique.
+
+La Datasource a donc deux incarnations UI, cohérentes entre elles :
+🟦 Hors chart (exploration)
+
+    un bouton / item dans :
+
+        le panel Runs
+
+        le panel Datasources (si tu l’isoles plus tard)
+
+    draggable
+
+    toujours disponible (jamais “consommé”)
+
+📈 Dans un chart
+
+    une courbe / série / markers
+
+    ajoutée par D&D
+
+    supprimable localement
+
+    duplicable dans plusieurs charts
+
+👉 C’est exactement ce qu’on a acté :
+
+    Datasource immuable, affichage local et réversible
+
+3️⃣ Entité persistée en base
+
+    « c'est aussi une entité référencée en base, en relation avec un Run »
+
+👉 Oui, et c’est même essentiel.
+
+Relation claire :
+
+    Un Run :
+
+        peut produire N Datasources
+
+    Une Datasource :
+
+        est produite par un Run
+
+        peut être affichée dans 0..N Charts
+
+En MCD (simplifié) :
+
+Run 1 ────< Datasource >──── 0..N Chart
+
+👉 Cette persistance permet :
+
+    retrouver les résultats
+
+    sauvegarder des charts
+
+    faire des recherches croisées
+
+    rejouer / comparer des vues
+
+4️⃣ Couleur unique et cohérente (point très important)
+
+    « possède une couleur identique dans l'éditeur Nodered,
+    dans le panel Runs et pour le graphe affiché dans le chart »
+
+👉 Excellent choix UX, et je te confirme :
+👉 la couleur doit appartenir à la Datasource, pas au Chart.
+
+Pourquoi ?
+
+    cohérence visuelle immédiate
+
+    reconnaissance cognitive (“ah, le vert c’est B3”)
+
+    pas de recalcul mental quand on change de vue
+
+    continuité Node‑RED → Runs → Charts
+
+Règle recommandée
+
+    La Datasource possède une couleur canonique
+
+    Le Chart :
+
+        l’utilise par défaut
+
+        peut éventuellement la surcharger localement (optionnel, plus tard)
+
+5️⃣ Conclusion : définition “officielle” de Datasource
+
+    Datasource
+
+    Une Datasource représente un ensemble de données affichable, produit par l’exécution d’un Run.
+
+    Elle peut correspondre :
+
+        à un résultat de backtest (courbe, trades, equity…)
+
+        ou à une source de marché (ticker) impliquée dans un Run.
+
+    Une Datasource :
+
+        est immuable
+
+        est référencée en base
+
+        est liée à un Run
+
+        possède une identité visuelle propre (couleur)
+
+        peut être manipulée graphiquement (drag & drop)
+
+        peut être affichée dans plusieurs charts
+
+        peut être retirée localement d’un chart sans impact global
+
+    Elle constitue l’unité fondamentale de visualisation entre le moteur de calcul (AST / Run) et l’interface graphique (Charts).
+
+
+
