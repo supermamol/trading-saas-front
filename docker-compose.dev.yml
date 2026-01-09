@@ -8,9 +8,6 @@ services:
       dockerfile: Dockerfile
     ports:
       - "5173:5173"
-    volumes:
-      - ./src/frontend:/app
-      - /app/node_modules
     stdin_open: true
     tty: false
     networks:

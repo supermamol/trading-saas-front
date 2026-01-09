@@ -1,6 +1,10 @@
 import { defineConfig } from "vite";
 
 export default defineConfig({
+  cacheDir: "/tmp/vite-cache",
+  optimizeDeps: {
+    include: ["lightweight-charts"],
+  },
   server: {
     host: true,
     port: 5173,

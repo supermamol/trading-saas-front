@@ -1,51 +1,68 @@
 // =========================
-// Imports
+// Global styles
 // =========================
-
-// Styles globaux
 import "./styles/theme.css";
 import "./styles/toolbar.css";
-// logique de thème (JS)
+
+// =========================
+// Custom Elements registry
+// (DOIT être importé avant tout usage)
+// =========================
+import "./components/custom-elements.js";
+
+// =========================
+// Theme logic
+// =========================
 import "./ui/theme.js";
 
+// =========================
 // Auth
+// =========================
 import {
   isAuthenticated,
   initAuth,
 } from "./services/auth.service.js";
 
+// =========================
 // Views
+// =========================
 import "./views/login-view.js";
 
-// Components
+// =========================
+// Components (non web-components)
+// =========================
 import "./components/app-toolbar.js";
 import "./components/strategy-list.js";
-import "./components/tv-chart.js";
 
+// =========================
 // Layout
+// =========================
 import { createLayout, destroyLayout } from "./layout/layout.js";
 
+// =========================
+// (Temp) Debug Lightweight Charts presence
+// =========================
+import { createChart } from "lightweight-charts";
+console.log(
+  "[LW] Lightweight Charts loaded:",
+  typeof createChart === "function"
+);
 
 // =========================
-// DOM roots
+// DOM state
 // =========================
-
 let toolbarEl = null;
 let layoutStarted = false;
-
 
 // =========================
 // Bootstrap
 // =========================
-
-initAuth();          // initialise auth (token, listeners éventuels)
-renderApp();         // point d’entrée unique
-
+initAuth();
+renderApp();
 
 // =========================
 // Main render logic (Auth Gate)
 // =========================
-
 function renderApp() {
   clearApp();
 
@@ -56,41 +73,33 @@ function renderApp() {
   }
 }
 
-
 // =========================
 // Non-authenticated state
 // =========================
-
 function showLogin() {
   const login = document.createElement("login-view");
   document.body.appendChild(login);
 }
 
-
 // =========================
 // Authenticated state
 // =========================
-
 function startAuthenticatedApp() {
   mountToolbar();
   startLayout();
 }
 
-
 // =========================
 // Toolbar
 // =========================
-
 function mountToolbar() {
   toolbarEl = document.createElement("app-toolbar");
   document.body.appendChild(toolbarEl);
 }
 
-
 // =========================
 // GoldenLayout
 // =========================
-
 function startLayout() {
   if (layoutStarted) return;
 
@@ -105,11 +114,9 @@ function stopLayout() {
   layoutStarted = false;
 }
 
-
 // =========================
 // Cleanup
 // =========================
-
 function clearApp() {
   stopLayout();
 
@@ -117,11 +124,9 @@ function clearApp() {
   toolbarEl = null;
 }
 
-
 // =========================
 // Global auth change handling
 // =========================
-
 document.addEventListener("auth-changed", () => {
   renderApp();
 });
