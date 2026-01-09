@@ -60,12 +60,7 @@ export function createLayout() {
                     componentName: "NodeRed",
                     title: "Node‑RED",
                     width: 50,
-                  },
-                  {
-                    type: "component",
-                    componentName: "LWChart",
-                    title: "Chart",
-                  },
+                  }
                 ],
               },
               {
