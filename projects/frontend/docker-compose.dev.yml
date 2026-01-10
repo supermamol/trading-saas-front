@@ -2,14 +2,17 @@ version: "3.9"
 
 services:
   front:
-    container_name: trading-saas-front
+    container_name: trading-saas-front-dev
     build:
-      context: ./src/frontend
+      context: .
       dockerfile: Dockerfile
     ports:
       - "5173:5173"
+    volumes:
+      - .:/app
+      - /app/node_modules
     stdin_open: true
-    tty: false
+    tty: true
     networks:
       - trading-saas-net
 
