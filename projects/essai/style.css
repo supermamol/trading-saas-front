@@ -1,11 +1,16 @@
-html, body {
-    width: 100%;
-    height: 100%;
-    margin: 0;
-  }
-  
-  #layout-root {
-    position: absolute;
-    inset: 0;
-  }
-  
+html,
+body {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+}
+
+#layout-root {
+  position: absolute;
+  inset: 0;
+}
+
+/* Disable Golden Layout popout everywhere */
+.lm_popout {
+  display: none !important;
+}
