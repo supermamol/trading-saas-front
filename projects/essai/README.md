@@ -26,152 +26,73 @@ Il s’agit d’un modèle métier, indépendant de toute considération de layo
 
         des relations explicites entre panels et entités métier
 
-2. Typologie des panels
-Panel	Type	Cardinalité
-Strategies	Liste	Singleton
-StrategyDetail	Détail	Multiple
-Node‑RED	Éditeur	Multiple contrôlé
-Chart	Visualisation	Multiple
-Run	Exécution	Multiple
-3. MCD – Relations entre panels
 
-USER
-  1
-  │
-  │ ouvre
-  │
-  1
-STRATEGIES (panel – singleton)
-  │
-  └── 1 ─── n STRATEGY_DETAIL (panel – multi)
-               (create / open strategy)
-               │
-               ├── 1 ─── 0..1 NODERED (panel – multi contrôlé)
-               │            (define my strategy)
-               │
-               ├── 1 ─── 0..n RUN (panel – multi)
-               │            (run this strategy / open run)
-               │
-               └── 1 ─── 0..n CHART (panel – multi)
-                            (new chart)
-                            (persisté en base, lié à la strategy)
 
-4. Description détaillée des panels
-4.1 Strategies (panel)
 
-    Singleton
-
-    Liste des stratégies
-
-    Point d’entrée vers StrategyDetail
-
-    Ne crée pas directement de Charts ni de Runs
-
-4.2 StrategyDetail (panel)
-
-    Multiple
-
-    Lié à une Strategy
-
-    Panel pivot du modèle
-
-Depuis StrategyDetail, l’utilisateur peut :
-
-    définir la stratégie (Node‑RED)
-
-    créer / ouvrir des Charts
-
-    lancer / ouvrir des Runs
-
-4.3 Node‑RED (panel)
-
-    Multiple contrôlé
-
-    1 Node‑RED maximum par Strategy
-
-    Ouvert depuis StrategyDetail via “Define my strategy”
-
-    Usage plein écran
-
-    Outil d’édition, pas un état permanent du workspace
-
-Clé métier :
-
-Node‑RED(strategyId)
-
-4.4 Chart (panel)
-
-    Multiple
-
-    Toujours lié à une Strategy en base
-
-    Instancié exclusivement depuis StrategyDetail
-
-    Persisté / restaurable depuis le backend
-
-Exemples d’usage :
-
-    création d’un nouveau chart
-
-    ouverture d’un chart existant
-
-    plusieurs charts simultanés pour une même stratégie
-
-4.5 Run (panel)
-
-    Multiple
-
-    Lié à une Strategy
-
-    Représente une exécution (en cours ou terminée)
-
-    Peut être ouvert / rouvert indépendamment
-
-5. Règles métier globales
-Singleton
+🔹 Panels métier définitifs
 
     Strategies
 
-Multiple
+        unique
+
+        seul panel affiché au chargement
+
+        point d’entrée du workflow
 
     StrategyDetail
 
-    Chart
+        unique
 
-    Run
+        ouvert suite à clic sur une stratégie
 
-    Node‑RED (avec contrainte métier)
+        lié implicitement à la stratégie courante
 
-Contraintes spécifiques
+    Chart:<strategyId>
 
-    1 Node‑RED par Strategy
+        un panel par stratégie
 
-    Les Charts ne sont jamais globaux
+        ouvert au‑dessus de strategyDetail
 
-    Toute ouverture d’un panel multi :
+    Run:<strategyId>
 
-        l’ajoute à la suite
+        un panel par stratégie
 
-        ne remplace jamais un panel existant
+        ouvert en dessous de strategyDetail
 
-6. Séparation modèle / vue
+    NodeRed:<strategyId>
 
-    Le MCD ne dépend pas du layout
+        lié à une stratégie
 
-    Golden Layout :
+        pas affiché au chargement
 
-        ne porte aucune règle métier
+        ouvert explicitement pour une stratégie donnée
 
-        ne fait qu’afficher les panels
 
-    Les règles d’unicité et d’ouverture sont évaluées avant la projection UI
 
-7. Résumé
+Règle “ajout en onglet” (ta règle exacte)
 
-    Le MCD décrit les relations métier entre panels
+Quand on ouvre un panel et qu’on doit l’ajouter en onglet, on ne cherche pas une stack ni une position, on cherche un panel d’ancrage (le “premier panel trouvé” qui matche) :
 
-    StrategyDetail est le contexte central
+    si on ouvre un strategyDetail
+    ➜ on l’ajoute au premier panel existant de type strategyDetail (peu importe l’id)
 
-    Node‑RED, Chart et Run sont des vues métier liées à une stratégie
+    si on ouvre un chart pour strategyId = Sx
+    ➜ on l’ajoute au premier panel existant qui matche type=chart et strategyId=Sx
 
-    Le layout est libre, jetable et reconstructible
+    si on ouvre un run pour strategyId = Sx
+    ➜ on l’ajoute au premier panel existant qui matche type=run et strategyId=Sx
+
+
+| Concept métier    | Panel ?  | panelKey            | componentId              |
+| ----------------- | -------- | ------------------- | ------------------------ |
+| Strategies        | ✅       | `strategies`        | `strategies:main`        |
+| StrategyDetail S1 | ✅       | `strategyDetail:S1` | `strategyDetail:S1:main` |
+| Chart S1 (panel)  | ✅       | `chart:S1`          | —                        |
+| Chart S1 – tab 1  | ❌       | —                   | `chart:S1:1`             |
+| Chart S1 – tab 2  | ❌       | —                   | `chart:S1:2`             |
+| Run S1 (panel)    | ✅       | `run:S1`            | —                        |
+| Run S1 – tab A    | ❌       | —                   | `run:S1:A`               |
+| NodeRed S1        | ✅       | `nodered:S1`        | `nodered:S1:main`        |
+
+
+

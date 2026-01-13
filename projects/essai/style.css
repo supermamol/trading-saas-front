@@ -9,8 +9,3 @@ body {
   position: absolute;
   inset: 0;
 }
-
-/* Disable Golden Layout popout everywhere */
-.lm_popout {
-  display: none !important;
-}

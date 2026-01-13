@@ -2,15 +2,18 @@
 
 export const PANEL_RULES = {
     strategies: {
-      mode: 'singleton'
+        mode: 'singleton'
     },
-  
+
     strategyDetail: {
-      mode: 'multi',
-      key: state => state.strategyId
+        mode: 'multi',
+        key: state => state.strategyId
+    },
+    chart: {
+        mode: 'multi',
+        key: state => state.chartId
     }
-  
-    // B viendra ici plus tard :
+
+    // le reste viendra ici plus tard :
     // chart, run, nodered, ...
-  };
-  
+};
