@@ -598,3 +598,164 @@ ________________________________________________________________________
 | nodered        | ✅      | 1 / stratégie | ✅          |
 
 
+🧭 PLAN D’ACTION POUR LA SUITE
+🟩 ÉTAT ACTUEL (point de départ)
+✅ Étape 5 — TERMINÉE
+
+    5.1 : workspace Mosaic persistant
+
+    5.2 : insertion automatique des panels
+    ➡️ On n’y touche plus
+
+Ce socle est bon, sain, et nécessaire.
+🟦 BLOC 1 — ÉTAPE 6 : UX DES ONGLETS (PRIORITAIRE)
+
+👉 Tout ce que tu as soulevé récemment (onglet actif, pile, detach, d&d) est ici.
+🔹 6.1 — Modèle d’onglets par pile (OBLIGATOIRE)
+Objectif
+
+Avoir un comportement prévisible et logique des onglets.
+Règles formelles
+
+    ouverture d’un panel → il devient actif
+
+    fermeture d’un panel non actif → aucun changement
+
+    fermeture de l’actif → retour au précédent (pile)
+
+    jamais d’onglet “fantôme”
+
+Livrable
+
+    remplacement de activeTabs par activeStacks
+
+    helpers clairs (push, remove, getActive)
+
+    aucun impact Mosaic
+
+Validation
+
+    Scénario :
+    Ouvre 1 → 2 → 3
+    Ferme 2 → actif = 3
+    Ferme 3 → actif = 1
+
+🔹 6.2 — Cohérence attach / detach
+Objectif
+
+Attach et detach ne cassent jamais la navigation.
+Règles
+
+    detach :
+
+        retire le panel de la pile
+
+        choisit le bon onglet actif
+
+    attach :
+
+        réinsère dans la pile
+
+        devient actif
+
+Validation
+
+    aucun group vide incohérent
+
+    jamais “plus rien d’actif” alors qu’il reste des onglets
+
+🔹 6.3 — UX explicite (SANS drag & drop)
+Objectif
+
+Permettre à l’utilisateur de rattacher proprement un panel.
+Moyens
+
+    bouton “Rattacher à StrategyDetail”
+
+    ou menu contextuel
+
+👉 Pas de D&D ici (volontairement)
+Validation
+
+    on peut toujours revenir à un état cohérent sans geste complexe
+
+👉 À la fin de l’étape 6 :
+
+    les onglets sont solides
+
+    la navigation est intuitive
+
+    Mosaic est juste un conteneur
+
+🟨 BLOC 2 — ÉTAPE 7 : LAYOUT MÉTIER GUIDÉ (CE QUE TU AS DÉCRIT)
+
+👉 Le layout précis que tu as formalisé (nodered en haut gauche, strategies bas gauche, etc.) n’appartient PAS au workspace libre.
+
+On l’assume comme un autre mode.
+🔹 7.1 — Formalisation des règles (SANS CODE)
+Objectif
+
+Écrire noir sur blanc les règles de placement.
+
+Exemple :
+
+    nodered → toujours haut gauche
+
+    strategies → toujours bas gauche
+
+    chart → haut droite
+
+    run → bas droite
+
+    strategyDetail :
+
+        bas droite si seul
+
+        centre droite si chart + run
+
+👉 On valide les règles AVANT de coder
+🔹 7.2 — Projection “dashboard”
+Objectif
+
+Un layout calculé, déterministe, piloté par le modèle.
+Caractéristiques
+
+    pas de drag structurel
+
+    layout recalculé à chaque changement métier
+
+    Mosaic utilisé comme moteur de rendu
+
+🔹 7.3 — Choix du mode
+
+Deux options possibles (à décider) :
+
+    soit dashboard uniquement
+
+    soit double mode :
+
+        Workspace libre (étape 5)
+
+        Dashboard métier (étape 7)
+
+🟪 BLOC 3 — OPTIONNEL / BONUS
+
+À faire uniquement si utile :
+
+    drag & drop vers onglets (UX pure)
+
+    sauvegarde du workspace
+
+    layouts personnalisés par utilisateur
+
+🧠 SYNTHÈSE ULTRA-COURTE
+
+    Étape 5 : terminée ✅
+
+    Étape 6 : onglets solides (pile, attach/detach) ⏭️ prochaine
+
+    Étape 7 : layout métier guidé (celui que tu veux)
+
+    Drag & drop = bonus, pas fondation
+
+
