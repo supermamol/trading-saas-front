@@ -1,131 +1,298 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import { Mosaic, MosaicWindow } from "react-mosaic-component";
 import type { MosaicNode } from "react-mosaic-component";
-
 import "react-mosaic-component/react-mosaic-component.css";
 
-import { createPanelGraph, openPanel } from "./model/panelGraph";
-import type { PanelGraph } from "./model/panelGraph";
+import type { PanelGraph } from "./model/panelModel";
+import { openPanel, detachPanel, attachPanel } from "./model/panelActions";
 
-import { panelGraphToMosaic } from "./layout/panelGraphToMosaic";
+import { panelGraphToTiles } from "./layout/panelGraphToTiles";
+import { tilesToMosaic } from "./layout/tilesToMosaic";
+import type { TileId } from "./layout/tilesToMosaic";
+import type { Tile } from "./layout/panelGraphToTiles";
 
-type TileId = string;
+/* -------------------------------------------------------
+ * Helpers TileId (purs, ok hors App)
+ * ----------------------------------------------------- */
+function isGroupTile(id: TileId): id is `group:${string}` {
+  return id.startsWith("group:");
+}
+function isPanelTile(id: TileId): id is `panel:${string}` {
+  return id.startsWith("panel:");
+}
+function groupKindFromId(id: `group:${string}`) {
+  return id.slice("group:".length);
+}
+function panelKeyFromId(id: `panel:${string}`) {
+  return id.slice("panel:".length);
+}
+function titleForGroupKind(kind: string) {
+  switch (kind) {
+    case "strategyDetail":
+      return "Strategy details";
+    case "chart":
+      return "Charts";
+    case "run":
+      return "Runs";
+    case "nodered":
+      return "Node-RED";
+    default:
+      return kind;
+  }
+}
 
+/* -------------------------------------------------------
+ * App
+ * ----------------------------------------------------- */
 export default function App() {
-  const [graph, setGraph] = useState<PanelGraph>(() => {
-    let g = createPanelGraph();
-    g = openPanel(g, { panelKey: "strategies", kind: "strategies" });
-    return g;
-  });
+  const [graph, setGraph] = useState<PanelGraph>({ panels: {} });
 
-  const layout: MosaicNode<TileId> | null = panelGraphToMosaic(graph);
+  // onglet actif par groupKind => panelKey
+  const [activeTabs, setActiveTabs] = useState<Record<string, string>>({});
 
-  /**
-   * Helpers métier simulés (POC)
-   * Ces fonctions seront déplacées plus tard
-   * dans une vraie API métier (Itération 3+)
-   */
-  function selectStrategy(strategyId: string) {
-    setGraph((g) => {
-      let next = g;
+  // helper UI (DOIT être dans App car lit activeTabs)
+  function getActivePanelKey(groupKind: string, panelKeys: string[]) {
+    return activeTabs[groupKind] ?? panelKeys[0];
+  }
 
-      next = openPanel(next, {
-        panelKey: `nodered:${strategyId}`,
-        kind: "nodered",
-        strategyId,
-      });
+  /* ------------------------------
+   * Actions métier (POC)
+   * ---------------------------- */
+  function openStrategies() {
+    setGraph((g) =>
+      openPanel(g, {
+        panelKey: "strategies",
+        kind: "strategies",
+      })
+    );
+  }
 
-      next = openPanel(next, {
+  function openStrategyDetail(strategyId: string) {
+    setGraph((g) =>
+      openPanel(g, {
         panelKey: `strategyDetail:${strategyId}`,
         kind: "strategyDetail",
         strategyId,
-      });
-
-      return next;
-    });
+      })
+    );
   }
 
-  function openChart(strategyId: string) {
+  function openChart(strategyId: string, nb: number) {
     setGraph((g) =>
       openPanel(g, {
-        panelKey: `chart:${strategyId}:1`,
+        panelKey: `chart:${strategyId}:${nb}`,
         kind: "chart",
         strategyId,
+        instanceKey: String(nb),
       })
     );
   }
 
-  function openRun(strategyId: string) {
+  function openRun(strategyId: string, nb: number) {
     setGraph((g) =>
       openPanel(g, {
-        panelKey: `run:${strategyId}:1`,
+        panelKey: `run:${strategyId}:${nb}`,
         kind: "run",
+        strategyId,
+        instanceKey: String(nb),
+      })
+    );
+  }
+
+  function openNodered(strategyId: string) {
+    setGraph((g) =>
+      openPanel(g, {
+        panelKey: `nodered:${strategyId}`,
+        kind: "nodered",
         strategyId,
       })
     );
   }
 
-  /**
-   * Rendu d’un panel (stub volontaire)
-   */
+  function detach(panelKey: string) {
+    setGraph((g) => detachPanel(g, panelKey));
+  }
+
+  // laissé en "any" car ton modèle exact de PanelKind/PanelNode n’est pas dans ce fichier
+  function attach(panelKey: string, kind: any) {
+    setGraph((g) => attachPanel(g, panelKey, kind));
+  }
+
+  /* ------------------------------
+   * Projection layout (tiles + layout)
+   * ---------------------------- */
+  const tiles = panelGraphToTiles(graph);
+  const [layout, setLayout] = useState<MosaicNode<TileId> | null>(null);
+
+  // initialisation du layout (une seule fois)
+  if (layout === null && tiles.length > 0) {
+    setLayout(tilesToMosaic(tiles));
+  }
+
+  // index pratique pour retrouver une tile group par kind
+  const groupTileByKind = useMemo(() => {
+    const map = new Map<string, Extract<Tile, { type: "group" }>>();
+    for (const t of tiles) {
+      if (t.type === "group") map.set(t.groupKind, t);
+    }
+    return map;
+  }, [tiles]);
+
+  /* ------------------------------
+   * Render contenu métier d’un panel
+   * ---------------------------- */
   function renderPanel(panelKey: string) {
-    
     if (panelKey === "strategies") {
       return (
         <div>
-          <h3>Choose a strategy</h3>
-          <button onClick={() => selectStrategy("S1")}>
-            Select strategy S1
-          </button>
+          <div style={{ marginBottom: 8, fontWeight: 700 }}>Strategies</div>
+          <button onClick={() => openStrategyDetail("S1")}>Open StrategyDetail S1</button>{" "}
+          <button onClick={() => openStrategyDetail("S2")}>Open StrategyDetail S2</button>
         </div>
       );
     }
 
-    if (panelKey.startsWith("strategyDetail")) {
+    if (panelKey.startsWith("strategyDetail:")) {
+      const sid = panelKey.split(":")[1] ?? "S1";
       return (
         <div>
-          <h3>Strategy Detail</h3>
-          <button onClick={() => openChart("S1")}>
-            Open Chart
-          </button>
-          <button onClick={() => openRun("S1")}>
-            Open Run
-          </button>
+          <div style={{ marginBottom: 8, fontWeight: 700 }}>StrategyDetail {sid}</div>
+
+          <button onClick={() => openChart(sid, 1)}>Open Chart {sid}:1</button>{" "}
+          <button onClick={() => openChart(sid, 2)}>Open Chart {sid}:2</button>{" "}
+          <button onClick={() => openRun(sid, 1)}>Open Run {sid}:1</button>{" "}
+          <button onClick={() => openNodered(sid)}>Open Nodered {sid}</button>
+
+          <div style={{ marginTop: 12 }}>
+            <button onClick={() => detach(panelKey)}>Detach this tab</button>
+          </div>
         </div>
       );
     }
 
-    if (panelKey.startsWith("nodered")) {
-      return <h3>Nodered</h3>;
-    }
-
-    if (panelKey.startsWith("chart")) {
-      return <h3>Chart</h3>;
-    }
-
-    if (panelKey.startsWith("run")) {
-      return <h3>Run</h3>;
-    }
-
-    return <div>{panelKey}</div>;
+    // défaut (chart/run/nodered etc.)
+    return (
+      <div>
+        <div style={{ marginBottom: 8, fontWeight: 700 }}>{panelKey}</div>
+        <button onClick={() => detach(panelKey)}>Detach</button>
+        {/* l’attach UI viendra en 4.2 : choix du groupKind cible */}
+        {/* <button onClick={() => attach(panelKey, "chart")}>Attach to chart</button> */}
+      </div>
+    );
   }
 
+  /* ------------------------------
+   * Tabs UI
+   * ---------------------------- */
+  function Tabs({ groupKind, panelKeys }: { groupKind: string; panelKeys: string[] }) {
+    const active = getActivePanelKey(groupKind, panelKeys);
+
+    return (
+      <div
+        style={{
+          display: "flex",
+          gap: 6,
+          borderBottom: "1px solid #ccc",
+          marginBottom: 8,
+          paddingBottom: 4,
+          flexWrap: "wrap",
+        }}
+      >
+        {panelKeys.map((key) => {
+          const label = key.split(":").pop() ?? key;
+
+          return (
+            <button
+              key={key}
+              onClick={() =>
+                setActiveTabs((t) => ({
+                  ...t,
+                  [groupKind]: key,
+                }))
+              }
+              style={{
+                fontWeight: key === active ? "bold" : "normal",
+              }}
+            >
+              {label}
+            </button>
+          );
+        })}
+      </div>
+    );
+  }
+
+  /* ------------------------------
+   * RenderTile Mosaic
+   * ---------------------------- */
+  function renderTile(id: TileId, path: any) {
+    // GROUP => onglets visibles
+    if (isGroupTile(id)) {
+      const groupKind = groupKindFromId(id);
+      const tile = groupTileByKind.get(groupKind);
+      if (!tile) return null;
+
+      const activePanelKey = getActivePanelKey(groupKind, tile.panelKeys);
+
+      return (
+        <MosaicWindow<TileId> path={path} title={titleForGroupKind(groupKind)} toolbarControls={[]}>
+          <div style={{ padding: 8 }}>
+            <Tabs groupKind={groupKind} panelKeys={tile.panelKeys} />
+            {renderPanel(activePanelKey)}
+          </div>
+        </MosaicWindow>
+      );
+    }
+
+    // PANEL => contenu direct
+    if (isPanelTile(id)) {
+      const panelKey = panelKeyFromId(id);
+      return (
+        <MosaicWindow<TileId> path={path} title={panelKey} toolbarControls={[]}>
+          <div style={{ padding: 8 }}>{renderPanel(panelKey)}</div>
+        </MosaicWindow>
+      );
+    }
+
+    return null;
+  }
+
+  /* ------------------------------
+   * UI always-visible (évite “No Windows Present” bloquant)
+   * ---------------------------- */
   return (
-    <div style={{ height: "100%", width: "100%" }}>
-      <Mosaic<TileId>
-        value={layout}
-        onChange={() => { }}
-        renderTile={(id, path) => (
-          <MosaicWindow<TileId> 
-          title={id}
-          path={path} toolbarControls={[]}>
-            <div style={{ padding: 10 }}>
-              {renderPanel(id)}
-            </div>
-          </MosaicWindow>
+    <div style={{ height: "100vh", width: "100vw", padding: 8 }}>
+      {/* Bandeau toujours visible */}
+      <div style={{ marginBottom: 8 }}>
+        <button onClick={openStrategies}>Open Strategies</button>
+        <button style={{ marginLeft: 8 }} onClick={() => openStrategyDetail("S1")}>
+          Open StrategyDetail S1
+        </button>
+        <button style={{ marginLeft: 8 }} onClick={() => openStrategyDetail("S2")}>
+          Open StrategyDetail S2
+        </button>
+      </div>
+
+      {/* Zone Mosaic */}
+      <div style={{ height: "calc(100% - 40px)", width: "100%" }}>
+        {layout ? (
+          <Mosaic<TileId> value={layout} onChange={setLayout} renderTile={renderTile} />
+        ) : (
+          <div
+            style={{
+              height: "100%",
+              border: "1px solid #ddd",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              color: "#777",
+              fontSize: 16,
+            }}
+          >
+            Aucun panel ouvert — clique sur “Open Strategies”
+          </div>
         )}
-      />
+      </div>
     </div>
   );
-
 }

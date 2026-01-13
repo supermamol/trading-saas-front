@@ -584,6 +584,17 @@ Par ailleurs (en vue de l'itération 3)
 - les panels d'un même type (ex: chart:S1) se rangent en onglet
 
 
+________________________________________________________________________
 
+
+🔒 Invariant 3 — Règles par type (rappel validé)
+
+| Kind           | Groupé  | Onglets       | Détachable  |
+| -------------- | ------- | ------------- | ----------- |
+| strategies     | ❌      | ❌            | ❌          |
+| strategyDetail | ✅      | 1 / stratégie | ✅          |
+| chart          | ✅      | stratégie:nb  | ✅          |
+| run            | ✅      | stratégie:nb  | ✅          |
+| nodered        | ✅      | 1 / stratégie | ✅          |
 
 

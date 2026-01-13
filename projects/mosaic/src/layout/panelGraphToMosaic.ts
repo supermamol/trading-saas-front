@@ -38,7 +38,6 @@ export function panelGraphToMosaic(
     direction: "column",
     first: nodered?.panelKey ?? "EMPTY",
     second: strategies?.panelKey ?? "EMPTY",
-    splitPercentage: 75, // Nodered prioritaire
   };
 
   // RIGHT column (évolutive)
