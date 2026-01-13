@@ -1,4 +1,6 @@
 import { useMemo, useState } from "react";
+import { useEffect } from "react";
+
 import { Mosaic, MosaicWindow } from "react-mosaic-component";
 import type { MosaicNode } from "react-mosaic-component";
 import "react-mosaic-component/react-mosaic-component.css";
@@ -39,6 +41,30 @@ function titleForGroupKind(kind: string) {
     default:
       return kind;
   }
+}
+function collectIds(
+  node: MosaicNode<TileId> | null,
+  acc: Set<TileId>
+) {
+  if (!node) return;
+
+  if (typeof node === "string") {
+    acc.add(node);
+    return;
+  }
+
+  collectIds(node.first, acc);
+  collectIds(node.second, acc);
+}
+function insertRight(
+  layout: MosaicNode<TileId>,
+  id: TileId
+): MosaicNode<TileId> {
+  return {
+    direction: "row",
+    first: layout,
+    second: id,
+  };
 }
 
 /* -------------------------------------------------------
@@ -124,10 +150,39 @@ export default function App() {
   const tiles = panelGraphToTiles(graph);
   const [layout, setLayout] = useState<MosaicNode<TileId> | null>(null);
 
-  // initialisation du layout (une seule fois)
-  if (layout === null && tiles.length > 0) {
-    setLayout(tilesToMosaic(tiles));
-  }
+  /* ------------------------------
+   * 5.1 — Initialisation du layout (UNE FOIS)
+   * ---------------------------- */
+  useEffect(() => {
+    if (layout === null && tiles.length > 0) {
+      setLayout(tilesToMosaic(tiles));
+    }
+  }, [layout, tiles]);
+  
+  useEffect(() => {
+    if (!layout) return;
+  
+    const layoutIds = new Set<TileId>();
+    collectIds(layout, layoutIds);
+  
+    const tileIds = tiles.map((t) =>
+      t.type === "group"
+        ? (`group:${t.groupKind}` as TileId)
+        : (`panel:${t.panelKey}` as TileId)
+    );
+  
+    const missing = tileIds.filter(
+      (id) => !layoutIds.has(id)
+    );
+  
+    if (missing.length === 0) return;
+  
+    // on insère UN seul panel à la fois (simple)
+    setLayout((l) =>
+      l ? insertRight(l, missing[0]) : l
+    );
+  }, [tiles, layout]);
+  
 
   // index pratique pour retrouver une tile group par kind
   const groupTileByKind = useMemo(() => {
