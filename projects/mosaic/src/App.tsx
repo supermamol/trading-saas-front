@@ -73,12 +73,56 @@ function insertRight(
 export default function App() {
   const [graph, setGraph] = useState<PanelGraph>({ panels: {} });
 
-  // onglet actif par groupKind => panelKey
-  const [activeTabs, setActiveTabs] = useState<Record<string, string>>({});
+  // pile d’activation par groupKind (dernier = actif)
+  const [activeStacks, setActiveStacks] =
+    useState<Record<string, string[]>>({});
 
-  // helper UI (DOIT être dans App car lit activeTabs)
   function getActivePanelKey(groupKind: string, panelKeys: string[]) {
-    return activeTabs[groupKind] ?? panelKeys[0];
+    const stack = activeStacks[groupKind];
+    if (stack && stack.length > 0) {
+      for (let i = stack.length - 1; i >= 0; i--) {
+        const key = stack[i];
+        if (panelKeys.includes(key)) return key;
+      }
+    }
+    return panelKeys[0];
+  }
+
+  function activatePanel(groupKind: string, panelKey: string) {
+    setActiveStacks((s) => ({
+      ...s,
+      [groupKind]: [
+        ...(s[groupKind] ?? []).filter((k) => k !== panelKey),
+        panelKey,
+      ],
+    }));
+  }
+
+  function removeFromStack(groupKind: string, panelKey: string) {
+    setActiveStacks((s) => ({
+      ...s,
+      [groupKind]: (s[groupKind] ?? []).filter((k) => k !== panelKey),
+    }));
+  }
+
+  function removeFromLayout(
+    node: MosaicNode<TileId>,
+    target: TileId
+  ): MosaicNode<TileId> | null {
+
+    console.log("removeFromLayout");
+
+    if (node === target) return null;
+
+    if (typeof node === "string") return node;
+
+    const first = removeFromLayout(node.first, target);
+    const second = removeFromLayout(node.second, target);
+
+    if (!first) return second;
+    if (!second) return first;
+
+    return { ...node, first, second };
   }
 
   /* ------------------------------
@@ -94,13 +138,17 @@ export default function App() {
   }
 
   function openStrategyDetail(strategyId: string) {
+    const panelKey = `strategyDetail:${strategyId}`;
+
     setGraph((g) =>
       openPanel(g, {
-        panelKey: `strategyDetail:${strategyId}`,
+        panelKey,
         kind: "strategyDetail",
         strategyId,
       })
     );
+
+    activatePanel("strategyDetail", panelKey);
   }
 
   function openChart(strategyId: string, nb: number) {
@@ -135,13 +183,21 @@ export default function App() {
     );
   }
 
-  function detach(panelKey: string) {
+  function detachFromGroup(
+    groupKind: string,
+    panelKey: string
+  ) {
+    removeFromStack(groupKind, panelKey);
     setGraph((g) => detachPanel(g, panelKey));
   }
 
   // laissé en "any" car ton modèle exact de PanelKind/PanelNode n’est pas dans ce fichier
-  function attach(panelKey: string, kind: any) {
-    setGraph((g) => attachPanel(g, panelKey, kind));
+  function attachToGroup(
+    groupKind: string,
+    panelKey: string
+  ) {
+    setGraph((g) => attachPanel(g, panelKey, groupKind));
+    activatePanel(groupKind, panelKey);
   }
 
   /* ------------------------------
@@ -150,39 +206,62 @@ export default function App() {
   const tiles = panelGraphToTiles(graph);
   const [layout, setLayout] = useState<MosaicNode<TileId> | null>(null);
 
-  /* ------------------------------
-   * 5.1 — Initialisation du layout (UNE FOIS)
-   * ---------------------------- */
+  // Initialisation du layout
   useEffect(() => {
     if (layout === null && tiles.length > 0) {
       setLayout(tilesToMosaic(tiles));
     }
   }, [layout, tiles]);
-  
+
+  // SUPPRESSION des panels obsolètes 
   useEffect(() => {
     if (!layout) return;
-  
+
     const layoutIds = new Set<TileId>();
     collectIds(layout, layoutIds);
-  
+
+    const expectedIds = new Set<TileId>(
+      tiles.map((t) =>
+        t.type === "group"
+          ? (`group:${t.groupKind}` as TileId)
+          : (`panel:${t.panelKey}` as TileId)
+      )
+    );
+
+    const obsolete = [...layoutIds].filter(
+      (id) => id.startsWith("panel:") && !expectedIds.has(id)
+    );
+
+    if (obsolete.length === 0) return;
+
+    setLayout((l) =>
+      l ? removeFromLayout(l, obsolete[0]) : l
+    );
+  }, [tiles, layout]);
+
+  // AJOUT des ids manquants
+  useEffect(() => {
+    if (!layout) return;
+
+    const layoutIds = new Set<TileId>();
+    collectIds(layout, layoutIds);
+
     const tileIds = tiles.map((t) =>
       t.type === "group"
         ? (`group:${t.groupKind}` as TileId)
         : (`panel:${t.panelKey}` as TileId)
     );
-  
+
     const missing = tileIds.filter(
       (id) => !layoutIds.has(id)
     );
-  
+
     if (missing.length === 0) return;
-  
-    // on insère UN seul panel à la fois (simple)
+
     setLayout((l) =>
       l ? insertRight(l, missing[0]) : l
     );
   }, [tiles, layout]);
-  
 
   // index pratique pour retrouver une tile group par kind
   const groupTileByKind = useMemo(() => {
@@ -196,49 +275,107 @@ export default function App() {
   /* ------------------------------
    * Render contenu métier d’un panel
    * ---------------------------- */
-  function renderPanel(panelKey: string) {
+  function renderPanel(
+    panelKey: string,
+    options?: {
+      isGrouped?: boolean;
+      canDetach?: boolean;
+    }
+  ) {
+    const isGrouped = options?.isGrouped === true;
+    const canDetach = options?.canDetach === true;
+
+    /* =========================
+     * Strategies
+     * ========================= */
     if (panelKey === "strategies") {
       return (
         <div>
-          <div style={{ marginBottom: 8, fontWeight: 700 }}>Strategies</div>
-          <button onClick={() => openStrategyDetail("S1")}>Open StrategyDetail S1</button>{" "}
-          <button onClick={() => openStrategyDetail("S2")}>Open StrategyDetail S2</button>
+          <div style={{ marginBottom: 8, fontWeight: 700 }}>
+            Strategies
+          </div>
+
+          <button onClick={() => openStrategyDetail("S1")}>
+            Open StrategyDetail S1
+          </button>{" "}
+          <button onClick={() => openStrategyDetail("S2")}>
+            Open StrategyDetail S2
+          </button>{" "}
+          <button onClick={() => openStrategyDetail("S3")}>
+            Open StrategyDetail S3
+          </button>
         </div>
       );
     }
 
+    /* =========================
+     * StrategyDetail
+     * ========================= */
     if (panelKey.startsWith("strategyDetail:")) {
-      const sid = panelKey.split(":")[1] ?? "S1";
+      const sid = panelKey.split(":")[1];
+
       return (
         <div>
-          <div style={{ marginBottom: 8, fontWeight: 700 }}>StrategyDetail {sid}</div>
+          <div style={{ marginBottom: 8, fontWeight: 700 }}>
+            StrategyDetail {sid}
+          </div>
 
-          <button onClick={() => openChart(sid, 1)}>Open Chart {sid}:1</button>{" "}
-          <button onClick={() => openChart(sid, 2)}>Open Chart {sid}:2</button>{" "}
-          <button onClick={() => openRun(sid, 1)}>Open Run {sid}:1</button>{" "}
-          <button onClick={() => openNodered(sid)}>Open Nodered {sid}</button>
+          <button onClick={() => openChart(sid, 1)}>
+            Open Chart {sid}:1
+          </button>{" "}
+          <button onClick={() => openChart(sid, 2)}>
+            Open Chart {sid}:2
+          </button>{" "}
+          <button onClick={() => openRun(sid, 1)}>
+            Open Run {sid}:1
+          </button>{" "}
+          <button onClick={() => openNodered(sid)}>
+            Open Nodered {sid}
+          </button>
 
           <div style={{ marginTop: 12 }}>
-            <button onClick={() => detach(panelKey)}>Detach this tab</button>
+            {/* === RÈGLE 6.2 === */}
+            {isGrouped ? (
+              canDetach ? (
+                <button
+                  onClick={() =>
+                    detachFromGroup("strategyDetail", panelKey)
+                  }
+                >
+                  Detach this tab
+                </button>
+              ) : null
+            ) : (
+              <button
+                onClick={() =>
+                  attachToGroup("strategyDetail", panelKey)
+                }
+              >
+                Attach to StrategyDetail
+              </button>
+            )}
+
           </div>
         </div>
       );
     }
 
-    // défaut (chart/run/nodered etc.)
+    /* =========================
+     * Autres panels (chart, run, nodered)
+     * ========================= */
     return (
       <div>
-        <div style={{ marginBottom: 8, fontWeight: 700 }}>{panelKey}</div>
-        <button onClick={() => detach(panelKey)}>Detach</button>
-        {/* l’attach UI viendra en 4.2 : choix du groupKind cible */}
-        {/* <button onClick={() => attach(panelKey, "chart")}>Attach to chart</button> */}
+        <div style={{ marginBottom: 8, fontWeight: 700 }}>
+          {panelKey}
+        </div>
+
+        {/* 6.2 : AUCUNE action Attach / Detach ici */}
       </div>
     );
   }
-
   /* ------------------------------
-   * Tabs UI
-   * ---------------------------- */
+ * Tabs UI
+ * ---------------------------- */
   function Tabs({ groupKind, panelKeys }: { groupKind: string; panelKeys: string[] }) {
     const active = getActivePanelKey(groupKind, panelKeys);
 
@@ -259,12 +396,7 @@ export default function App() {
           return (
             <button
               key={key}
-              onClick={() =>
-                setActiveTabs((t) => ({
-                  ...t,
-                  [groupKind]: key,
-                }))
-              }
+              onClick={() => activatePanel(groupKind, key)}
               style={{
                 fontWeight: key === active ? "bold" : "normal",
               }}
@@ -281,6 +413,7 @@ export default function App() {
    * RenderTile Mosaic
    * ---------------------------- */
   function renderTile(id: TileId, path: any) {
+
     // GROUP => onglets visibles
     if (isGroupTile(id)) {
       const groupKind = groupKindFromId(id);
@@ -293,7 +426,10 @@ export default function App() {
         <MosaicWindow<TileId> path={path} title={titleForGroupKind(groupKind)} toolbarControls={[]}>
           <div style={{ padding: 8 }}>
             <Tabs groupKind={groupKind} panelKeys={tile.panelKeys} />
-            {renderPanel(activePanelKey)}
+            {renderPanel(activePanelKey, {
+              isGrouped: true,
+              canDetach: tile.panelKeys.length > 1,
+            })}
           </div>
         </MosaicWindow>
       );
@@ -304,7 +440,9 @@ export default function App() {
       const panelKey = panelKeyFromId(id);
       return (
         <MosaicWindow<TileId> path={path} title={panelKey} toolbarControls={[]}>
-          <div style={{ padding: 8 }}>{renderPanel(panelKey)}</div>
+          <div style={{ padding: 8 }}>
+            {renderPanel(panelKey, { isGrouped: false })}
+          </div>
         </MosaicWindow>
       );
     }
