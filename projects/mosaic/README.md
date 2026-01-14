@@ -664,6 +664,35 @@ Validation
 
     jamais “plus rien d’actif” alors qu’il reste des onglets
 
+🔹 6.2.bis — Étape intermédiaire : Généralisation
+
+Objectif :
+
+    appliquer exactement les mêmes règles
+    à tous les groups, sans changer l’UX globale.
+
+Concrètement :
+
+    Identifier le groupKind naturel d’un panel
+
+        strategyDetail:* → strategyDetail
+
+        chart:* → chart
+
+        run:* → run
+
+        nodered:* → nodered
+
+    Rendre Attach / Detach générique
+
+        plus de logique codée en dur sur strategyDetail
+
+        même code, groupKind variable
+
+    Ne pas encore toucher au layout métier
+
+        ça, c’est 6.3
+
 🔹 6.3 — UX explicite (SANS drag & drop)
 Objectif
 

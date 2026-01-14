@@ -13,6 +13,9 @@ import { tilesToMosaic } from "./layout/tilesToMosaic";
 import type { TileId } from "./layout/tilesToMosaic";
 import type { Tile } from "./layout/panelGraphToTiles";
 
+import { StrategyDetailPanel } from "./panels/StrategyDetailPanel";
+import { AttachDetachActions } from "./panels/AttachDetachActions";
+
 /* -------------------------------------------------------
  * Helpers TileId (purs, ok hors App)
  * ----------------------------------------------------- */
@@ -200,6 +203,15 @@ export default function App() {
     activatePanel(groupKind, panelKey);
   }
 
+  function groupKindFromPanelKey(panelKey: string): string | null {
+    if (panelKey === "strategies") return "strategies";
+  
+    const idx = panelKey.indexOf(":");
+    if (idx === -1) return null;
+  
+    return panelKey.slice(0, idx);
+  }
+    
   /* ------------------------------
    * Projection layout (tiles + layout)
    * ---------------------------- */
@@ -284,7 +296,8 @@ export default function App() {
   ) {
     const isGrouped = options?.isGrouped === true;
     const canDetach = options?.canDetach === true;
-
+    const groupKind = groupKindFromPanelKey(panelKey);
+  
     /* =========================
      * Strategies
      * ========================= */
@@ -294,7 +307,7 @@ export default function App() {
           <div style={{ marginBottom: 8, fontWeight: 700 }}>
             Strategies
           </div>
-
+  
           <button onClick={() => openStrategyDetail("S1")}>
             Open StrategyDetail S1
           </button>{" "}
@@ -307,69 +320,51 @@ export default function App() {
         </div>
       );
     }
-
+  
     /* =========================
-     * StrategyDetail
+     * StrategyDetail (METIER)
      * ========================= */
     if (panelKey.startsWith("strategyDetail:")) {
       const sid = panelKey.split(":")[1];
-
+      const gk = groupKind!; // forcément non-null ici
+  
       return (
-        <div>
-          <div style={{ marginBottom: 8, fontWeight: 700 }}>
-            StrategyDetail {sid}
-          </div>
-
-          <button onClick={() => openChart(sid, 1)}>
-            Open Chart {sid}:1
-          </button>{" "}
-          <button onClick={() => openChart(sid, 2)}>
-            Open Chart {sid}:2
-          </button>{" "}
-          <button onClick={() => openRun(sid, 1)}>
-            Open Run {sid}:1
-          </button>{" "}
-          <button onClick={() => openNodered(sid)}>
-            Open Nodered {sid}
-          </button>
-
-          <div style={{ marginTop: 12 }}>
-            {/* === RÈGLE 6.2 === */}
-            {isGrouped ? (
-              canDetach ? (
-                <button
-                  onClick={() =>
-                    detachFromGroup("strategyDetail", panelKey)
-                  }
-                >
-                  Detach this tab
-                </button>
-              ) : null
-            ) : (
-              <button
-                onClick={() =>
-                  attachToGroup("strategyDetail", panelKey)
-                }
-              >
-                Attach to StrategyDetail
-              </button>
-            )}
-
-          </div>
-        </div>
+        <StrategyDetailPanel
+          sid={sid}
+          onOpenChart={(nb) => openChart(sid, nb)}
+          onOpenRun={(nb) => openRun(sid, nb)}
+          onOpenNodered={() => openNodered(sid)}
+        >
+          <AttachDetachActions
+            groupKind={gk}
+            isGrouped={isGrouped}
+            canDetach={canDetach}
+            onAttach={() => attachToGroup(gk, panelKey)}
+            onDetach={() => detachFromGroup(gk, panelKey)}
+          />
+        </StrategyDetailPanel>
       );
     }
-
+  
     /* =========================
-     * Autres panels (chart, run, nodered)
+     * Fallback générique
+     * (chart, run, nodered, etc.)
      * ========================= */
     return (
       <div>
         <div style={{ marginBottom: 8, fontWeight: 700 }}>
           {panelKey}
         </div>
-
-        {/* 6.2 : AUCUNE action Attach / Detach ici */}
+  
+        {groupKind && (
+          <AttachDetachActions
+            groupKind={groupKind}
+            isGrouped={isGrouped}
+            canDetach={canDetach}
+            onAttach={() => attachToGroup(groupKind, panelKey)}
+            onDetach={() => detachFromGroup(groupKind, panelKey)}
+          />
+        )}
       </div>
     );
   }
@@ -441,7 +436,7 @@ export default function App() {
       return (
         <MosaicWindow<TileId> path={path} title={panelKey} toolbarControls={[]}>
           <div style={{ padding: 8 }}>
-            {renderPanel(panelKey, { isGrouped: false })}
+            {renderPanel(panelKey)}
           </div>
         </MosaicWindow>
       );
