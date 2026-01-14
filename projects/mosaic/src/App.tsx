@@ -9,9 +9,9 @@ import type { PanelGraph } from "./model/panelModel";
 import { openPanel, detachPanel, attachPanel } from "./model/panelActions";
 
 import { panelGraphToTiles } from "./layout/panelGraphToTiles";
-import { tilesToMosaic } from "./layout/tilesToMosaic";
 import type { TileId } from "./layout/tilesToMosaic";
 import type { Tile } from "./layout/panelGraphToTiles";
+import { buildBusinessLayout } from "./layout/buildBusinessLayout";
 
 import { StrategyDetailPanel } from "./panels/StrategyDetailPanel";
 import { AttachDetachActions } from "./panels/AttachDetachActions";
@@ -205,75 +205,26 @@ export default function App() {
 
   function groupKindFromPanelKey(panelKey: string): string | null {
     if (panelKey === "strategies") return "strategies";
-  
+
     const idx = panelKey.indexOf(":");
     if (idx === -1) return null;
-  
+
     return panelKey.slice(0, idx);
   }
-    
+
   /* ------------------------------
    * Projection layout (tiles + layout)
    * ---------------------------- */
-  const tiles = panelGraphToTiles(graph);
+  const tiles = useMemo(
+    () => panelGraphToTiles(graph),
+    [graph]
+  );
   const [layout, setLayout] = useState<MosaicNode<TileId> | null>(null);
 
   // Initialisation du layout
   useEffect(() => {
-    if (layout === null && tiles.length > 0) {
-      setLayout(tilesToMosaic(tiles));
-    }
-  }, [layout, tiles]);
-
-  // SUPPRESSION des panels obsolètes 
-  useEffect(() => {
-    if (!layout) return;
-
-    const layoutIds = new Set<TileId>();
-    collectIds(layout, layoutIds);
-
-    const expectedIds = new Set<TileId>(
-      tiles.map((t) =>
-        t.type === "group"
-          ? (`group:${t.groupKind}` as TileId)
-          : (`panel:${t.panelKey}` as TileId)
-      )
-    );
-
-    const obsolete = [...layoutIds].filter(
-      (id) => id.startsWith("panel:") && !expectedIds.has(id)
-    );
-
-    if (obsolete.length === 0) return;
-
-    setLayout((l) =>
-      l ? removeFromLayout(l, obsolete[0]) : l
-    );
-  }, [tiles, layout]);
-
-  // AJOUT des ids manquants
-  useEffect(() => {
-    if (!layout) return;
-
-    const layoutIds = new Set<TileId>();
-    collectIds(layout, layoutIds);
-
-    const tileIds = tiles.map((t) =>
-      t.type === "group"
-        ? (`group:${t.groupKind}` as TileId)
-        : (`panel:${t.panelKey}` as TileId)
-    );
-
-    const missing = tileIds.filter(
-      (id) => !layoutIds.has(id)
-    );
-
-    if (missing.length === 0) return;
-
-    setLayout((l) =>
-      l ? insertRight(l, missing[0]) : l
-    );
-  }, [tiles, layout]);
+    setLayout(buildBusinessLayout(tiles));
+  }, [tiles]);
 
   // index pratique pour retrouver une tile group par kind
   const groupTileByKind = useMemo(() => {
@@ -297,7 +248,7 @@ export default function App() {
     const isGrouped = options?.isGrouped === true;
     const canDetach = options?.canDetach === true;
     const groupKind = groupKindFromPanelKey(panelKey);
-  
+
     /* =========================
      * Strategies
      * ========================= */
@@ -307,7 +258,7 @@ export default function App() {
           <div style={{ marginBottom: 8, fontWeight: 700 }}>
             Strategies
           </div>
-  
+
           <button onClick={() => openStrategyDetail("S1")}>
             Open StrategyDetail S1
           </button>{" "}
@@ -320,14 +271,14 @@ export default function App() {
         </div>
       );
     }
-  
+
     /* =========================
      * StrategyDetail (METIER)
      * ========================= */
     if (panelKey.startsWith("strategyDetail:")) {
       const sid = panelKey.split(":")[1];
       const gk = groupKind!; // forcément non-null ici
-  
+
       return (
         <StrategyDetailPanel
           sid={sid}
@@ -345,7 +296,7 @@ export default function App() {
         </StrategyDetailPanel>
       );
     }
-  
+
     /* =========================
      * Fallback générique
      * (chart, run, nodered, etc.)
@@ -355,7 +306,7 @@ export default function App() {
         <div style={{ marginBottom: 8, fontWeight: 700 }}>
           {panelKey}
         </div>
-  
+
         {groupKind && (
           <AttachDetachActions
             groupKind={groupKind}

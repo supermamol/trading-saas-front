@@ -788,3 +788,178 @@ Deux options possibles (à décider) :
     Drag & drop = bonus, pas fondation
 
 
+_____________________________________________________________________________
+
+T O D O        T O D O        T O D O        T O D O        T O D O        
+_____________________________________________________________________________
+
+
+✅ Déjà fait / solidement en place
+
+On peut les considérer acquis :
+Architecture & modèle
+
+    PanelGraph comme source de vérité
+
+    Projection panelGraph → tiles → layout
+
+    Layout métier déterministe (6.3)
+
+    Groupes homogènes, pas de groupes à 1 onglet
+
+    Externalisation des panels (StrategyDetail OK)
+
+    Séparation claire :
+
+        structure (layout)
+
+        contenu métier
+
+        interactions futures
+
+UX structurelle
+
+    Onglets par groupKind
+
+    Activation d’onglet correcte
+
+    Attach / Detach compris comme transitoires
+
+    Décision claire : Detach = DnD only (plus tard)
+
+👉 Très bon socle.
+🔜 À FAIRE AVANT LE DnD (POC “propre”)
+
+Ces points sont fortement recommandés avant d’attaquer le DnD, sinon tu vas empiler des dettes.
+1️⃣ Finaliser proprement le layout métier (6.3 final)
+À faire
+
+Geler définitivement buildBusinessLayout
+
+Vérifier tous les scénarios listés (tu les as très bien formalisés)
+
+    Ajuster éventuellement :
+
+        proportions gauche / droite
+
+        proportions verticales à droite (chart / detail / run)
+
+👉 Objectif : plus aucun débat sur le layout pendant le DnD.
+2️⃣ Clarifier le statut des boutons Attach / Detach
+
+Ils sont aujourd’hui :
+
+    utiles pour tester
+
+    mais conceptuellement faux à terme
+
+À faire
+
+Décider :
+
+    soit on les garde temporairement (flag __DEV__)
+
+    soit on les retire du POC UI
+
+    S’assurer que rien de critique ne dépend d’eux
+
+👉 Le DnD doit arriver dans un terrain propre.
+3️⃣ Externaliser les autres panels (symétrie)
+
+Pour éviter des traitements “à part” plus tard.
+À faire
+
+ChartPanel
+
+RunPanel
+
+NoderedPanel
+
+    (optionnel) StrategiesPanel
+
+👉 Même si le contenu est minimal, la structure doit être prête.
+4️⃣ Stabiliser le modèle métier des panels
+
+Avant DnD, il faut être sûr de ces points :
+À vérifier / figer
+
+Un panel a toujours un panelKey stable
+
+Un group est déduit, jamais stocké
+
+Aucune logique métier ne dépend du layout
+
+    panelGraphToTiles est pure et memoïsé (déjà fait)
+
+👉 Sinon le DnD va exposer les failles.
+5️⃣ Décider ce que le POC NE fait PAS
+
+Très important pour ne pas dériver.
+
+À acter explicitement :
+
+pas de persistence du layout
+
+pas de restauration session
+
+pas de resize sophistiqué
+
+pas de raccourcis clavier
+
+    pas d’undo / redo
+
+👉 Le DnD sera fonctionnel, pas “produit fini”.
+🟡 OPTIONNEL (mais utiles selon ton objectif)
+6️⃣ Mode “layout verrouillé / libre” (UX bonus)
+
+Même sans DnD complet :
+
+détecter un onChange Mosaic
+
+geler le recalcul automatique
+
+    bouton “Reset layout métier”
+
+👉 Très pédagogique pour les reviewers.
+7️⃣ Préparer le terrain du DnD (sans l’implémenter)
+
+Avant de coder le DnD, tu peux déjà :
+
+définir les types TS :
+
+DragSource
+DropTarget
+DropIntent
+
+écrire computeDropIntent(...) (sans UI)
+
+    tester les règles sur des objets mock
+
+👉 Le DnD devient alors une plomberie UI, pas un chantier métier.
+🧭 Vision synthèse (important)
+
+Pour un POC crédible, il faut que :
+
+    le layout + le modèle soient irréprochables avant d’ajouter le DnD
+
+Sinon :
+
+    le DnD masquera des défauts
+
+    ou les rendra impossibles à corriger ensuite
+
+✅ Checklist POC minimale (si on devait trancher)
+
+Si tu veux un POC “clean” rapidement, je dirais :
+
+    ✔️ Layout métier figé
+
+    ✔️ Panels externalisés
+
+    ✔️ Attach/Detach neutralisés ou assumés
+
+    ✔️ Modèle PanelGraph stable
+
+    ➜ ensuite seulement : DnD
+
+
