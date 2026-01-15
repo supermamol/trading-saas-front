@@ -4,6 +4,8 @@ import { Mosaic, MosaicWindow } from "react-mosaic-component";
 import type { MosaicNode } from "react-mosaic-component";
 
 import type { PanelGraph } from "../model/panelModel";
+import { detachPanel as detachPanelFromGraph, attachPanel as attachPanelToGraph } from "../model/panelActions";
+
 import type { Tile } from "./panelGraphToTiles";
 import { panelGraphToTiles } from "./panelGraphToTiles";
 import type { TileId } from "./tilesToMosaic";
@@ -41,6 +43,10 @@ function titleForGroupKind(kind: string) {
       return kind;
   }
 }
+
+/* -------------------------------------------------------
+ * Layout helpers
+ * ----------------------------------------------------- */
 function removeFromLayout(
   node: MosaicNode<TileId> | null,
   id: TileId
@@ -65,10 +71,7 @@ function layoutContainsId(
   if (!node) return false;
   if (node === id) return true;
   if (typeof node === "string") return false;
-  return (
-    layoutContainsId(node.first, id) ||
-    layoutContainsId(node.second, id)
-  );
+  return layoutContainsId(node.first, id) || layoutContainsId(node.second, id);
 }
 
 /* -------------------------------------------------------
@@ -112,38 +115,6 @@ export function MosaicWorkspace({
     {}
   );
 
-  function detachPanel(panelKey: string) {
-    if (!layoutRef.current) return;
-  
-    const panelId = `panel:${panelKey}` as TileId;
-  
-    // 🔒 déjà détaché → rien à faire
-    if (layoutContainsId(layoutRef.current, panelId)) return;
-  
-    // 1️⃣ ajouter le panel isolé dans le layout
-    layoutRef.current = {
-      direction: "row",
-      first: layoutRef.current,
-      second: panelId,
-    };
-  
-    forceRender((x) => x + 1);
-  }
-  
-  function attachPanel(panelKey: string) {
-    if (!layoutRef.current) return;
-  
-    const panelId = `panel:${panelKey}` as TileId;
-  
-    // 1️⃣ retirer le panel isolé du layout
-    layoutRef.current = removeFromLayout(
-      layoutRef.current,
-      panelId
-    );
-  
-    forceRender((x) => x + 1);
-  }
-  
   function activatePanel(groupKind: string, panelKey: string) {
     setActiveStacks((s) => ({
       ...s,
@@ -153,6 +124,7 @@ export function MosaicWorkspace({
       ],
     }));
   }
+
   function getActivePanelKey(groupKind: string, panelKeys: string[]) {
     const stack = activeStacks[groupKind];
     if (stack && stack.length) {
@@ -173,21 +145,10 @@ export function MosaicWorkspace({
     layoutRef.current = buildBusinessLayout(tiles);
   }
 
-  function layoutContainsId(
-    node: MosaicNode<TileId> | null,
-    id: TileId
-  ): boolean {
-    if (!node) return false;
-    if (node === id) return true;
-    if (typeof node === "string") return false;
-    return layoutContainsId(node.first, id) || layoutContainsId(node.second, id);
-  }
-
   // Insère un GROUPE à droite de la racine (une seule fois)
   function ensureGroupVisibleRightOfRoot(groupKind: string) {
     if (!layoutRef.current) return;
     const groupId = `group:${groupKind}` as TileId;
-
     if (layoutContainsId(layoutRef.current, groupId)) return;
 
     layoutRef.current = {
@@ -195,6 +156,40 @@ export function MosaicWorkspace({
       first: layoutRef.current,
       second: groupId,
     };
+    forceRender((x) => x + 1);
+  }
+
+  /* -------------------------------------------------------
+   * Attach / Detach (METIER + LAYOUT)
+   * ----------------------------------------------------- */
+  function detachPanelUI(panelKey: string, groupKind: string) {
+    // 1) METIER : sortir du groupe (donc plus d’onglet)
+    setGraph((g) => detachPanelFromGraph(g, panelKey));
+
+    // 2) LAYOUT : ajouter comme panel isolé
+    if (!layoutRef.current) return;
+    const panelId = `panel:${panelKey}` as TileId;
+
+    if (!layoutContainsId(layoutRef.current, panelId)) {
+      layoutRef.current = {
+        direction: "row",
+        first: layoutRef.current,
+        second: panelId,
+      };
+    }
+
+    forceRender((x) => x + 1);
+  }
+
+  function attachPanelUI(panelKey: string, groupKind: string) {
+    // 1) METIER : rattacher au groupe (donc onglet)
+    setGraph((g) => attachPanelToGraph(g, panelKey, groupKind));
+
+    // 2) LAYOUT : enlever la fenêtre isolée
+    if (!layoutRef.current) return;
+    const panelId = `panel:${panelKey}` as TileId;
+
+    layoutRef.current = removeFromLayout(layoutRef.current, panelId);
     forceRender((x) => x + 1);
   }
 
@@ -209,6 +204,7 @@ export function MosaicWorkspace({
     panelKeys: string[];
   }) {
     const active = getActivePanelKey(groupKind, panelKeys);
+
     return (
       <div
         style={{
@@ -236,10 +232,12 @@ export function MosaicWorkspace({
   /* ------------------------------
    * Render contenu panel
    * ---------------------------- */
-  function renderPanel(
-    panelKey: string,
-    options?: { isGrouped?: boolean }
-  ) {
+  function renderPanel(panelKey: string, options?: { isGrouped?: boolean }) {
+    const tileContextIsGrouped = options?.isGrouped === true;
+
+    /* =========================
+     * Strategies (racine)
+     * ========================= */
     if (panelKey === "strategies") {
       return (
         <div>
@@ -251,9 +249,7 @@ export function MosaicWorkspace({
               const pk = `strategyDetail:${sid}`;
               onOpenStrategyDetail(sid);
 
-              // 1ère fois: crée la zone StrategyDetail (un seul split)
               ensureGroupVisibleRightOfRoot("strategyDetail");
-              // focus onglet
               activatePanel("strategyDetail", pk);
             }}
           >
@@ -264,6 +260,7 @@ export function MosaicWorkspace({
               const sid = "S2";
               const pk = `strategyDetail:${sid}`;
               onOpenStrategyDetail(sid);
+
               ensureGroupVisibleRightOfRoot("strategyDetail");
               activatePanel("strategyDetail", pk);
             }}
@@ -275,6 +272,7 @@ export function MosaicWorkspace({
               const sid = "S3";
               const pk = `strategyDetail:${sid}`;
               onOpenStrategyDetail(sid);
+
               ensureGroupVisibleRightOfRoot("strategyDetail");
               activatePanel("strategyDetail", pk);
             }}
@@ -285,22 +283,40 @@ export function MosaicWorkspace({
       );
     }
 
+    /* =========================
+     * StrategyDetail
+     * ========================= */
     if (panelKey.startsWith("strategyDetail:")) {
       const sid = panelKey.split(":")[1];
       const groupKind = "strategyDetail";
-    
-      const isGrouped =
-        groupTileByKind.get(groupKind)?.panelKeys.includes(panelKey) ??
-        false;
-    
+
+      const groupTile = groupTileByKind.get(groupKind);
+      const inGroup = groupTile?.panelKeys.includes(panelKey) ?? false;
+      const groupSize = groupTile?.panelKeys.length ?? 0;
+
+      // Règle: un groupe avec 1 seul panel => pas détachable
+      const canDetach = tileContextIsGrouped && inGroup && groupSize > 1;
+
       return (
         <div>
-          <AttachDetachActions
-            isGrouped={isGrouped}
-            onDetach={() => detachPanel(panelKey)}
-            onAttach={() => attachPanel(panelKey)}
-          />
-    
+          {/* Onglet dans un groupe: Detach seulement si groupSize > 1
+              Panel détaché: bouton Attach */}
+          {inGroup ? (
+            canDetach ? (
+              <AttachDetachActions
+                isGrouped={true}
+                onDetach={() => detachPanelUI(panelKey, groupKind)}
+                onAttach={() => attachPanelUI(panelKey, groupKind)}
+              />
+            ) : null
+          ) : (
+            <AttachDetachActions
+              isGrouped={false}
+              onDetach={() => detachPanelUI(panelKey, groupKind)}
+              onAttach={() => attachPanelUI(panelKey, groupKind)}
+            />
+          )}
+
           <StrategyDetailPanel
             sid={sid}
             onOpenChart={(nb) => onOpenChart(sid, nb)}
@@ -310,7 +326,10 @@ export function MosaicWorkspace({
         </div>
       );
     }
-    
+
+    /* =========================
+     * Fallback
+     * ========================= */
     return <div>{panelKey}</div>;
   }
 
@@ -342,12 +361,8 @@ export function MosaicWorkspace({
     if (isPanelTile(id)) {
       const panelKey = panelKeyFromId(id);
       return (
-        <MosaicWindow<TileId>
-          path={path}
-          title={panelKey}
-          toolbarControls={[]}
-        >
-          <div style={{ padding: 8 }}>{renderPanel(panelKey)}</div>
+        <MosaicWindow<TileId> path={path} title={panelKey} toolbarControls={[]}>
+          <div style={{ padding: 8 }}>{renderPanel(panelKey, { isGrouped: false })}</div>
         </MosaicWindow>
       );
     }
@@ -355,6 +370,9 @@ export function MosaicWorkspace({
     return null;
   }
 
+  /* ------------------------------
+   * Empty state
+   * ---------------------------- */
   if (!layoutRef.current) {
     return (
       <div
@@ -372,7 +390,8 @@ export function MosaicWorkspace({
     );
   }
 
-  return (
-    <Mosaic<TileId> initialValue={layoutRef.current} renderTile={renderTile} />
-  );
+  /* ------------------------------
+   * Mosaic uncontrolled
+   * ---------------------------- */
+  return <Mosaic<TileId> initialValue={layoutRef.current} renderTile={renderTile} />;
 }
