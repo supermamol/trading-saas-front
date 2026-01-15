@@ -393,5 +393,15 @@ export function MosaicWorkspace({
   /* ------------------------------
    * Mosaic uncontrolled
    * ---------------------------- */
-  return <Mosaic<TileId> initialValue={layoutRef.current} renderTile={renderTile} />;
+  return (
+    <Mosaic<TileId>
+      initialValue={layoutRef.current}
+      onChange={(next) => {
+        layoutRef.current = next; // on mémorise les resize/DnD
+      }}
+      renderTile={renderTile}
+    />
+  );
+  
+
 }
