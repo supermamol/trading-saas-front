@@ -963,3 +963,42 @@ Si tu veux un POC “clean” rapidement, je dirais :
     ➜ ensuite seulement : DnD
 
 
+__________________________________________________________________________
+
+🔍 Les 3 types d’événements layout
+1️⃣ Événements métier
+
+    openStrategies
+
+    openStrategyDetail
+
+    openChart / openRun / openNodered
+
+👉 Le layout doit être dérivé du modèle
+👉 buildBusinessLayout(...)
+2️⃣ Événements utilisateur structurants
+
+    detach tab
+
+    attach tab
+
+    fermeture / création explicite de fenêtres
+
+👉 Le layout devient piloté par l’utilisateur
+👉 on ne doit plus jamais le recalculer automatiquement
+3️⃣ Événements utilisateur géométriques
+
+    resize
+
+    drag
+
+    splitPercentage change
+
+    rearrange Mosaic
+
+👉 Ce ne sont PAS des décisions métier
+👉 Ça ne doit JAMAIS réactiver l’auto‑layout
+
+____________________________________________________________________
+
+
