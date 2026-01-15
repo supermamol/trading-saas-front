@@ -1000,5 +1000,153 @@ __________________________________________________________________________
 👉 Ça ne doit JAMAIS réactiver l’auto‑layout
 
 ____________________________________________________________________
+____________________________________________________________________
+____________________________________________________________________
+
+🧭 Synthèse — Layout utilisateur souverain (PISTE 1)
+🎯 Problème de départ
+
+On voulait à la fois :
+
+    un layout auto piloté par le métier
+
+    et un layout librement manipulable (resize / drag & drop)
+
+👉 Avec react-mosaic (et en réalité toutes les libs de layout),
+les deux sont incompatibles sans UX dégradée.
+✅ Décision clé (fondamentale)
+
+    Dès que l’utilisateur touche le layout,
+    il devient souverain sur la géométrie.
+
+Conséquences :
+
+    ❌ plus de recalcul automatique du layout
+
+    ❌ plus de remounts implicites
+
+    ✅ stabilité visuelle
+
+    ✅ comportement “outil pro” (IDE, trading, dashboards)
+
+🧠 Principe central
+Zone principale active
+
+    Ce n’est pas une zone fixe
+
+    C’est le panel avec lequel l’utilisateur interagit en dernier
+
+    En pratique :
+
+        le panel qui déclenche l’action
+
+        sinon le dernier panel activé
+
+        sinon un fallback visible
+
+👉 Tout nouveau panel est positionné relativement à ce panel.
+📐 Placement des nouveaux panels
+
+Conceptuellement, il y a 4 directions possibles :
+
+    haut
+
+    bas
+
+    gauche
+
+    droite
+
+⚠️ Mais l’utilisateur ne choisit pas.
+👉 Le système choisit une direction par défaut, cohérente métier.
+👉 L’utilisateur peut ensuite réorganiser librement.
+📋 Règles de placement (version finale)
+1️⃣ StrategyDetail
+
+    à droite de Strategies
+
+    split horizontal
+    → logique liste → contenu
+
+2️⃣ NodeRED
+
+    au‑dessus de son StrategyDetail
+
+    split vertical
+    → logique outil / configuration
+
+3️⃣ Chart
+
+    en dessous de son StrategyDetail
+
+    split vertical
+    → logique visualisation
+
+4️⃣ Run
+
+    à droite de son StrategyDetail
+
+    split horizontal
+    → logique exécution / résultats
+
+📌 Règle essentielle de stabilité
+
+    Le système ne crée jamais plus d’un split par type de panel.
+
+    1er Chart → split
+
+    Charts suivants → onglets
+
+    idem pour Run, NodeRED, etc.
+
+👉 C’est ce qui empêche l’explosion du layout.
+🧩 Règles générales
+
+    Tout nouveau panel :
+
+        est placé relativement au panel appelant
+
+        sinon à la zone principale active
+
+    Si la cible n’est plus visible :
+
+        fallback vers la zone active
+
+    Une fois affiché :
+
+        le système ne touche plus à la géométrie
+
+        l’utilisateur est libre (DnD / resize)
+
+🛠️ Choix technique associé
+
+    react-mosaic utilisé en mode uncontrolled
+
+        initialValue
+
+        jamais value
+
+    Le layout n’est recalculé :
+
+        qu’au tout premier affichage
+
+        ou via un reset explicite
+
+    Toute réorganisation automatique implicite est bannie
+
+👉 Stabilité > magie
+🧠 Règle d’or finale (à retenir)
+
+    Le métier décide quoi apparaît.
+    L’utilisateur décide où et comment ça vit.
+
+C’est cette séparation qui :
+
+    rend l’UX acceptable
+
+    rend le code maintenable
+
+    évite les effets “layout qui saute”
+
 
 

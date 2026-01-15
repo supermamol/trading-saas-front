@@ -1,13 +1,11 @@
 import "react-mosaic-component/react-mosaic-component.css";
-import { useMemo, useState } from "react";
+import { useMemo, useRef, useState } from "react";
 import { Mosaic, MosaicWindow } from "react-mosaic-component";
 import type { MosaicNode } from "react-mosaic-component";
 
 import type { PanelGraph } from "../model/panelModel";
-import { detachPanel, attachPanel } from "../model/panelActions";
-
-import { panelGraphToTiles } from "./panelGraphToTiles";
 import type { Tile } from "./panelGraphToTiles";
+import { panelGraphToTiles } from "./panelGraphToTiles";
 import type { TileId } from "./tilesToMosaic";
 import { buildBusinessLayout } from "./buildBusinessLayout";
 
@@ -15,7 +13,7 @@ import { StrategyDetailPanel } from "../panels/StrategyDetailPanel";
 import { AttachDetachActions } from "../panels/AttachDetachActions";
 
 /* -------------------------------------------------------
- * Helpers TileId
+ * TileId helpers
  * ----------------------------------------------------- */
 function isGroupTile(id: TileId): id is `group:${string}` {
   return id.startsWith("group:");
@@ -43,11 +41,40 @@ function titleForGroupKind(kind: string) {
       return kind;
   }
 }
+function removeFromLayout(
+  node: MosaicNode<TileId> | null,
+  id: TileId
+): MosaicNode<TileId> | null {
+  if (!node) return null;
+  if (node === id) return null;
+  if (typeof node === "string") return node;
+
+  const first = removeFromLayout(node.first, id);
+  const second = removeFromLayout(node.second, id);
+
+  if (!first) return second;
+  if (!second) return first;
+
+  return { ...node, first, second };
+}
+
+function layoutContainsId(
+  node: MosaicNode<TileId> | null,
+  id: TileId
+): boolean {
+  if (!node) return false;
+  if (node === id) return true;
+  if (typeof node === "string") return false;
+  return (
+    layoutContainsId(node.first, id) ||
+    layoutContainsId(node.second, id)
+  );
+}
 
 /* -------------------------------------------------------
  * Props
  * ----------------------------------------------------- */
-export interface MosaicWorkspaceProps {
+interface MosaicWorkspaceProps {
   graph: PanelGraph;
   setGraph: React.Dispatch<React.SetStateAction<PanelGraph>>;
 
@@ -58,7 +85,10 @@ export interface MosaicWorkspaceProps {
 }
 
 /* -------------------------------------------------------
- * MosaicWorkspace (UNCONTROLLED)
+ * MosaicWorkspace (layout utilisateur souverain)
+ * - Mosaic uncontrolled
+ * - Layout stocké en ref
+ * - On ne modifie le layout que sur apparition d’un NOUVEAU GROUPE
  * ----------------------------------------------------- */
 export function MosaicWorkspace({
   graph,
@@ -68,97 +98,108 @@ export function MosaicWorkspace({
   onOpenRun,
   onOpenNodered,
 }: MosaicWorkspaceProps) {
-  /* ------------------------------
-   * Onglets / focus
-   * ---------------------------- */
+  const tiles = useMemo<Tile[]>(() => panelGraphToTiles(graph), [graph]);
+
+  // Map des groupes (groupKind -> tile group)
+  const groupTileByKind = useMemo(() => {
+    const map = new Map<string, Extract<Tile, { type: "group" }>>();
+    for (const t of tiles) if (t.type === "group") map.set(t.groupKind, t);
+    return map;
+  }, [tiles]);
+
+  // Tabs / focus par groupe
   const [activeStacks, setActiveStacks] = useState<Record<string, string[]>>(
     {}
   );
 
+  function detachPanel(panelKey: string) {
+    if (!layoutRef.current) return;
+  
+    const panelId = `panel:${panelKey}` as TileId;
+  
+    // 🔒 déjà détaché → rien à faire
+    if (layoutContainsId(layoutRef.current, panelId)) return;
+  
+    // 1️⃣ ajouter le panel isolé dans le layout
+    layoutRef.current = {
+      direction: "row",
+      first: layoutRef.current,
+      second: panelId,
+    };
+  
+    forceRender((x) => x + 1);
+  }
+  
+  function attachPanel(panelKey: string) {
+    if (!layoutRef.current) return;
+  
+    const panelId = `panel:${panelKey}` as TileId;
+  
+    // 1️⃣ retirer le panel isolé du layout
+    layoutRef.current = removeFromLayout(
+      layoutRef.current,
+      panelId
+    );
+  
+    forceRender((x) => x + 1);
+  }
+  
   function activatePanel(groupKind: string, panelKey: string) {
     setActiveStacks((s) => ({
       ...s,
       [groupKind]: [
         ...(s[groupKind] ?? []).filter((k) => k !== panelKey),
-        panelKey, // dernier = actif
+        panelKey,
       ],
     }));
   }
-
   function getActivePanelKey(groupKind: string, panelKeys: string[]) {
     const stack = activeStacks[groupKind];
-    if (stack && stack.length > 0) {
+    if (stack && stack.length) {
       for (let i = stack.length - 1; i >= 0; i--) {
-        const key = stack[i];
-        if (panelKeys.includes(key)) return key;
+        const k = stack[i];
+        if (panelKeys.includes(k)) return k;
       }
     }
     return panelKeys[0];
   }
 
-  function removeFromStack(groupKind: string, panelKey: string) {
-    setActiveStacks((s) => ({
-      ...s,
-      [groupKind]: (s[groupKind] ?? []).filter((k) => k !== panelKey),
-    }));
+  // Layout impératif (hors state)
+  const layoutRef = useRef<MosaicNode<TileId> | null>(null);
+  const [, forceRender] = useState(0);
+
+  // Init layout UNE FOIS quand le 1er panel existe
+  if (!layoutRef.current && tiles.length > 0) {
+    layoutRef.current = buildBusinessLayout(tiles);
+  }
+
+  function layoutContainsId(
+    node: MosaicNode<TileId> | null,
+    id: TileId
+  ): boolean {
+    if (!node) return false;
+    if (node === id) return true;
+    if (typeof node === "string") return false;
+    return layoutContainsId(node.first, id) || layoutContainsId(node.second, id);
+  }
+
+  // Insère un GROUPE à droite de la racine (une seule fois)
+  function ensureGroupVisibleRightOfRoot(groupKind: string) {
+    if (!layoutRef.current) return;
+    const groupId = `group:${groupKind}` as TileId;
+
+    if (layoutContainsId(layoutRef.current, groupId)) return;
+
+    layoutRef.current = {
+      direction: "row",
+      first: layoutRef.current,
+      second: groupId,
+    };
+    forceRender((x) => x + 1);
   }
 
   /* ------------------------------
-   * Tiles + layout INITIAL
-   * ---------------------------- */
-  const tiles = useMemo(() => panelGraphToTiles(graph), [graph]);
-
-  /**
-   * 🔥 Clé Mosaic
-   * - change => remount complet
-   * - utilisé pour attach / detach / reset
-   */
-  const [mosaicKey, setMosaicKey] = useState(0);
-
-  const groupTileByKind = useMemo(() => {
-    const map = new Map<string, Extract<Tile, { type: "group" }>>();
-    for (const t of tiles) {
-      if (t.type === "group") map.set(t.groupKind, t);
-    }
-    return map;
-  }, [tiles]);
-
-  const [floatingPanels, setFloatingPanels] = useState<string[]>([]);
-
-
-  /* ------------------------------
-   * Actions attach / detach
-   * ---------------------------- */
-  function detachFromGroup(groupKind: string, panelKey: string) {
-    removeFromStack(groupKind, panelKey);
-    setGraph((g) => detachPanel(g, panelKey));
-  
-    setFloatingPanels((p) =>
-      p.includes(panelKey) ? p : [...p, panelKey]
-    );
-  
-    // remount Mosaic
-    setMosaicKey((k) => k + 1);
-  }
-  
-  function attachToGroup(groupKind: string, panelKey: string) {
-    setGraph((g) => attachPanel(g, panelKey, groupKind));
-    activatePanel(groupKind, panelKey);
-  
-    setFloatingPanels((p) => p.filter((k) => k !== panelKey));
-  
-    setMosaicKey((k) => k + 1);
-  }
-
-  function groupKindFromPanelKey(panelKey: string): string | null {
-    if (panelKey === "strategies") return "strategies";
-    const idx = panelKey.indexOf(":");
-    if (idx === -1) return null;
-    return panelKey.slice(0, idx);
-  }
-
-  /* ------------------------------
-   * Tabs UI
+   * UI: Tabs
    * ---------------------------- */
   function Tabs({
     groupKind,
@@ -168,7 +209,6 @@ export function MosaicWorkspace({
     panelKeys: string[];
   }) {
     const active = getActivePanelKey(groupKind, panelKeys);
-
     return (
       <div
         style={{
@@ -194,80 +234,84 @@ export function MosaicWorkspace({
   }
 
   /* ------------------------------
-   * Render contenu d’un panel
+   * Render contenu panel
    * ---------------------------- */
   function renderPanel(
     panelKey: string,
-    options?: { isGrouped?: boolean; canDetach?: boolean }
+    options?: { isGrouped?: boolean }
   ) {
-    const isGrouped = options?.isGrouped === true;
-    const canDetach = options?.canDetach === true;
-    const groupKind = groupKindFromPanelKey(panelKey);
-
-    // Strategies (racine)
     if (panelKey === "strategies") {
       return (
         <div>
-          <div style={{ marginBottom: 8, fontWeight: 700 }}>
-            Strategies
-          </div>
+          <div style={{ marginBottom: 8, fontWeight: 700 }}>Strategies</div>
 
-          <button onClick={() => onOpenStrategyDetail("S1")}>
+          <button
+            onClick={() => {
+              const sid = "S1";
+              const pk = `strategyDetail:${sid}`;
+              onOpenStrategyDetail(sid);
+
+              // 1ère fois: crée la zone StrategyDetail (un seul split)
+              ensureGroupVisibleRightOfRoot("strategyDetail");
+              // focus onglet
+              activatePanel("strategyDetail", pk);
+            }}
+          >
             Open StrategyDetail S1
           </button>{" "}
-          <button onClick={() => onOpenStrategyDetail("S2")}>
+          <button
+            onClick={() => {
+              const sid = "S2";
+              const pk = `strategyDetail:${sid}`;
+              onOpenStrategyDetail(sid);
+              ensureGroupVisibleRightOfRoot("strategyDetail");
+              activatePanel("strategyDetail", pk);
+            }}
+          >
             Open StrategyDetail S2
           </button>{" "}
-          <button onClick={() => onOpenStrategyDetail("S3")}>
+          <button
+            onClick={() => {
+              const sid = "S3";
+              const pk = `strategyDetail:${sid}`;
+              onOpenStrategyDetail(sid);
+              ensureGroupVisibleRightOfRoot("strategyDetail");
+              activatePanel("strategyDetail", pk);
+            }}
+          >
             Open StrategyDetail S3
           </button>
         </div>
       );
     }
 
-    // StrategyDetail
     if (panelKey.startsWith("strategyDetail:")) {
       const sid = panelKey.split(":")[1];
-      const gk = groupKind!;
-
+      const groupKind = "strategyDetail";
+    
+      const isGrouped =
+        groupTileByKind.get(groupKind)?.panelKeys.includes(panelKey) ??
+        false;
+    
       return (
-        <StrategyDetailPanel
-          sid={sid}
-          onOpenChart={(nb) => onOpenChart(sid, nb)}
-          onOpenRun={(nb) => onOpenRun(sid, nb)}
-          onOpenNodered={() => onOpenNodered(sid)}
-        >
+        <div>
           <AttachDetachActions
-            groupKind={gk}
             isGrouped={isGrouped}
-            canDetach={canDetach}
-            onAttach={() => attachToGroup(gk, panelKey)}
-            onDetach={() => detachFromGroup(gk, panelKey)}
+            onDetach={() => detachPanel(panelKey)}
+            onAttach={() => attachPanel(panelKey)}
           />
-        </StrategyDetailPanel>
+    
+          <StrategyDetailPanel
+            sid={sid}
+            onOpenChart={(nb) => onOpenChart(sid, nb)}
+            onOpenRun={(nb) => onOpenRun(sid, nb)}
+            onOpenNodered={() => onOpenNodered(sid)}
+          />
+        </div>
       );
     }
-
-    // Fallback
-    const isAttachable = groupKind !== null && panelKey !== "strategies";
-
-    return (
-      <div>
-        <div style={{ marginBottom: 8, fontWeight: 700 }}>
-          {panelKey}
-        </div>
-
-        {isAttachable && (
-          <AttachDetachActions
-            groupKind={groupKind!}
-            isGrouped={isGrouped}
-            canDetach={canDetach}
-            onAttach={() => attachToGroup(groupKind!, panelKey)}
-            onDetach={() => detachFromGroup(groupKind!, panelKey)}
-          />
-        )}
-      </div>
-    );
+    
+    return <div>{panelKey}</div>;
   }
 
   /* ------------------------------
@@ -279,10 +323,7 @@ export function MosaicWorkspace({
       const tile = groupTileByKind.get(groupKind);
       if (!tile) return null;
 
-      const activePanelKey = getActivePanelKey(
-        groupKind,
-        tile.panelKeys
-      );
+      const activePanelKey = getActivePanelKey(groupKind, tile.panelKeys);
 
       return (
         <MosaicWindow<TileId>
@@ -291,14 +332,8 @@ export function MosaicWorkspace({
           toolbarControls={[]}
         >
           <div style={{ padding: 8 }}>
-            <Tabs
-              groupKind={groupKind}
-              panelKeys={tile.panelKeys}
-            />
-            {renderPanel(activePanelKey, {
-              isGrouped: true,
-              canDetach: tile.panelKeys.length > 1,
-            })}
+            <Tabs groupKind={groupKind} panelKeys={tile.panelKeys} />
+            {renderPanel(activePanelKey, { isGrouped: true })}
           </div>
         </MosaicWindow>
       );
@@ -312,9 +347,7 @@ export function MosaicWorkspace({
           title={panelKey}
           toolbarControls={[]}
         >
-          <div style={{ padding: 8 }}>
-            {renderPanel(panelKey)}
-          </div>
+          <div style={{ padding: 8 }}>{renderPanel(panelKey)}</div>
         </MosaicWindow>
       );
     }
@@ -322,31 +355,7 @@ export function MosaicWorkspace({
     return null;
   }
 
-  /* ------------------------------
-   * Render final
-   * ---------------------------- */
-  const baseLayout = buildBusinessLayout(tiles);
-
-  function stackRight(
-    layout: MosaicNode<TileId>,
-    panelKey: string
-  ): MosaicNode<TileId> {
-    return {
-      direction: "row",
-      first: layout,
-      second: `panel:${panelKey}`,
-    };
-  }
-  
-  const layout =
-    baseLayout && floatingPanels.length > 0
-      ? floatingPanels.reduce(
-          (acc, key) => stackRight(acc, key),
-          baseLayout
-        )
-      : baseLayout;
-  
-  if (!layout) {
+  if (!layoutRef.current) {
     return (
       <div
         style={{
@@ -358,17 +367,12 @@ export function MosaicWorkspace({
           color: "#777",
         }}
       >
-        Aucun panel ouvert
+        Aucun panel ouvert — clique sur “Open Strategies”
       </div>
     );
   }
-  
-  return (
-    <Mosaic<TileId>
-      key={mosaicKey}
-      initialValue={layout}
-      renderTile={renderTile}
-    />
-  );  
 
+  return (
+    <Mosaic<TileId> initialValue={layoutRef.current} renderTile={renderTile} />
+  );
 }
