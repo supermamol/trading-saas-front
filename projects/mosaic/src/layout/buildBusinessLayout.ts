@@ -1,3 +1,9 @@
+// -----------------------------------------------------
+// Ce layout n’est utilisé qu’au tout premier rendu
+// est immédiatement “abandonné” au profit du layout utilisateur
+// Dès que l’utilisateur interagit, Mosaic devient source de vérité.
+// -----------------------------------------------------
+
 function tileIdForGroup(groupKind: string): TileId {
     return `group:${groupKind}` as TileId;
 }

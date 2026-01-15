@@ -1,0 +1,1313 @@
+=====> src/App.tsx :
+import { useState } from "react";
+
+import type { PanelGraph } from "./model/panelModel";
+import { openPanel } from "./model/panelActions";
+
+import { MosaicWorkspace } from "./layout/MosaicWorkspace";
+
+export default function App() {
+  const [graph, setGraph] = useState<PanelGraph>({ panels: {} });
+
+  function openStrategies() {
+    setGraph((g) =>
+      openPanel(g, { panelKey: "strategies", kind: "strategies" })
+    );
+  }
+
+  function openStrategyDetail(strategyId: string) {
+    const panelKey = `strategyDetail:${strategyId}`;
+    setGraph((g) =>
+      openPanel(g, { panelKey, kind: "strategyDetail", strategyId })
+    );
+  }
+
+  function openChart(strategyId: string, nb: number) {
+    setGraph((g) =>
+      openPanel(g, {
+        panelKey: `chart:${strategyId}:${nb}`,
+        kind: "chart",
+        strategyId,
+        instanceKey: String(nb),
+      })
+    );
+  }
+
+  function openRun(strategyId: string, nb: number) {
+    setGraph((g) =>
+      openPanel(g, {
+        panelKey: `run:${strategyId}:${nb}`,
+        kind: "run",
+        strategyId,
+        instanceKey: String(nb),
+      })
+    );
+  }
+
+  function openNodered(strategyId: string) {
+    setGraph((g) =>
+      openPanel(g, {
+        panelKey: `nodered:${strategyId}`,
+        kind: "nodered",
+        strategyId,
+      })
+    );
+  }
+
+  return (
+    <div style={{ height: "100vh", width: "100vw", padding: 8 }}>
+      <div style={{ marginBottom: 8 }}>
+        <button onClick={openStrategies}>Open Strategies</button>
+      </div>
+
+      <div style={{ height: "calc(100% - 40px)", width: "100%" }}>
+        <MosaicWorkspace
+          graph={graph}
+          setGraph={setGraph}
+          onOpenStrategyDetail={openStrategyDetail}
+          onOpenChart={openChart}
+          onOpenRun={openRun}
+          onOpenNodered={openNodered}
+        />
+      </div>
+    </div>
+  );
+}
+=====> src/assets/react.svg :
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" aria-hidden="true" role="img" class="iconify iconify--logos" width="35.93" height="32" preserveAspectRatio="xMidYMid meet" viewBox="0 0 256 228"><path fill="#00D8FF" d="M210.483 73.824a171.49 171.49 0 0 0-8.24-2.597c.465-1.9.893-3.777 1.273-5.621c6.238-30.281 2.16-54.676-11.769-62.708c-13.355-7.7-35.196.329-57.254 19.526a171.23 171.23 0 0 0-6.375 5.848a155.866 155.866 0 0 0-4.241-3.917C100.759 3.829 77.587-4.822 63.673 3.233C50.33 10.957 46.379 33.89 51.995 62.588a170.974 170.974 0 0 0 1.892 8.48c-3.28.932-6.445 1.924-9.474 2.98C17.309 83.498 0 98.307 0 113.668c0 15.865 18.582 31.778 46.812 41.427a145.52 145.52 0 0 0 6.921 2.165a167.467 167.467 0 0 0-2.01 9.138c-5.354 28.2-1.173 50.591 12.134 58.266c13.744 7.926 36.812-.22 59.273-19.855a145.567 145.567 0 0 0 5.342-4.923a168.064 168.064 0 0 0 6.92 6.314c21.758 18.722 43.246 26.282 56.54 18.586c13.731-7.949 18.194-32.003 12.4-61.268a145.016 145.016 0 0 0-1.535-6.842c1.62-.48 3.21-.974 4.76-1.488c29.348-9.723 48.443-25.443 48.443-41.52c0-15.417-17.868-30.326-45.517-39.844Zm-6.365 70.984c-1.4.463-2.836.91-4.3 1.345c-3.24-10.257-7.612-21.163-12.963-32.432c5.106-11 9.31-21.767 12.459-31.957c2.619.758 5.16 1.557 7.61 2.4c23.69 8.156 38.14 20.213 38.14 29.504c0 9.896-15.606 22.743-40.946 31.14Zm-10.514 20.834c2.562 12.94 2.927 24.64 1.23 33.787c-1.524 8.219-4.59 13.698-8.382 15.893c-8.067 4.67-25.32-1.4-43.927-17.412a156.726 156.726 0 0 1-6.437-5.87c7.214-7.889 14.423-17.06 21.459-27.246c12.376-1.098 24.068-2.894 34.671-5.345a134.17 134.17 0 0 1 1.386 6.193ZM87.276 214.515c-7.882 2.783-14.16 2.863-17.955.675c-8.075-4.657-11.432-22.636-6.853-46.752a156.923 156.923 0 0 1 1.869-8.499c10.486 2.32 22.093 3.988 34.498 4.994c7.084 9.967 14.501 19.128 21.976 27.15a134.668 134.668 0 0 1-4.877 4.492c-9.933 8.682-19.886 14.842-28.658 17.94ZM50.35 144.747c-12.483-4.267-22.792-9.812-29.858-15.863c-6.35-5.437-9.555-10.836-9.555-15.216c0-9.322 13.897-21.212 37.076-29.293c2.813-.98 5.757-1.905 8.812-2.773c3.204 10.42 7.406 21.315 12.477 32.332c-5.137 11.18-9.399 22.249-12.634 32.792a134.718 134.718 0 0 1-6.318-1.979Zm12.378-84.26c-4.811-24.587-1.616-43.134 6.425-47.789c8.564-4.958 27.502 2.111 47.463 19.835a144.318 144.318 0 0 1 3.841 3.545c-7.438 7.987-14.787 17.08-21.808 26.988c-12.04 1.116-23.565 2.908-34.161 5.309a160.342 160.342 0 0 1-1.76-7.887Zm110.427 27.268a347.8 347.8 0 0 0-7.785-12.803c8.168 1.033 15.994 2.404 23.343 4.08c-2.206 7.072-4.956 14.465-8.193 22.045a381.151 381.151 0 0 0-7.365-13.322Zm-45.032-43.861c5.044 5.465 10.096 11.566 15.065 18.186a322.04 322.04 0 0 0-30.257-.006c4.974-6.559 10.069-12.652 15.192-18.18ZM82.802 87.83a323.167 323.167 0 0 0-7.227 13.238c-3.184-7.553-5.909-14.98-8.134-22.152c7.304-1.634 15.093-2.97 23.209-3.984a321.524 321.524 0 0 0-7.848 12.897Zm8.081 65.352c-8.385-.936-16.291-2.203-23.593-3.793c2.26-7.3 5.045-14.885 8.298-22.6a321.187 321.187 0 0 0 7.257 13.246c2.594 4.48 5.28 8.868 8.038 13.147Zm37.542 31.03c-5.184-5.592-10.354-11.779-15.403-18.433c4.902.192 9.899.29 14.978.29c5.218 0 10.376-.117 15.453-.343c-4.985 6.774-10.018 12.97-15.028 18.486Zm52.198-57.817c3.422 7.8 6.306 15.345 8.596 22.52c-7.422 1.694-15.436 3.058-23.88 4.071a382.417 382.417 0 0 0 7.859-13.026a347.403 347.403 0 0 0 7.425-13.565Zm-16.898 8.101a358.557 358.557 0 0 1-12.281 19.815a329.4 329.4 0 0 1-23.444.823c-7.967 0-15.716-.248-23.178-.732a310.202 310.202 0 0 1-12.513-19.846h.001a307.41 307.41 0 0 1-10.923-20.627a310.278 310.278 0 0 1 10.89-20.637l-.001.001a307.318 307.318 0 0 1 12.413-19.761c7.613-.576 15.42-.876 23.31-.876H128c7.926 0 15.743.303 23.354.883a329.357 329.357 0 0 1 12.335 19.695a358.489 358.489 0 0 1 11.036 20.54a329.472 329.472 0 0 1-11 20.722Zm22.56-122.124c8.572 4.944 11.906 24.881 6.52 51.026c-.344 1.668-.73 3.367-1.15 5.09c-10.622-2.452-22.155-4.275-34.23-5.408c-7.034-10.017-14.323-19.124-21.64-27.008a160.789 160.789 0 0 1 5.888-5.4c18.9-16.447 36.564-22.941 44.612-18.3ZM128 90.808c12.625 0 22.86 10.235 22.86 22.86s-10.235 22.86-22.86 22.86s-22.86-10.235-22.86-22.86s10.235-22.86 22.86-22.86Z"></path></svg>=====> src/index.css :
+html,
+body,
+#root {
+  height: 100%;
+  margin: 0;
+}
+
+body {
+  display: block;
+}
+
+.mosaic-preview {
+  display: none !important;
+}
+=====> src/layout/buildBusinessLayout.ts :
+function tileIdForGroup(groupKind: string): TileId {
+    return `group:${groupKind}` as TileId;
+}
+
+function firstPresent(...nodes: Array<MosaicNode<TileId> | null>): MosaicNode<TileId> | null {
+    for (const n of nodes) if (n) return n;
+    return null;
+}
+
+function stackColumn(nodes: Array<MosaicNode<TileId> | null>): MosaicNode<TileId> | null {
+    const present = nodes.filter(Boolean) as MosaicNode<TileId>[];
+    if (present.length === 0) return null;
+    let acc: MosaicNode<TileId> = present[0];
+    for (let i = 1; i < present.length; i++) {
+        acc = { direction: "column", first: acc, second: present[i] };
+    }
+    return acc;
+}
+
+export function buildBusinessLayout(tiles: Tile[]): MosaicNode<TileId> | null {
+    const hasGroup = (kind: string) =>
+        tiles.some((t) => t.type === "group" && t.groupKind === kind);
+
+    const strategies =
+        tiles.some((t) => t.type === "panel" && t.panelKey === "strategies")
+            ? ("panel:strategies" as TileId)
+            : hasGroup("strategies") 
+                ? ("group:strategies" as TileId)
+                : null;
+
+    const nodered = hasGroup("nodered") ? tileIdForGroup("nodered") : null;
+
+    const chart = hasGroup("chart") ? tileIdForGroup("chart") : null;
+    const detail = hasGroup("strategyDetail") ? tileIdForGroup("strategyDetail") : null;
+    const run = hasGroup("run") ? tileIdForGroup("run") : null;
+
+    // Cas "Strategies seul" => plein écran
+    const left = stackColumn([nodered, strategies]);
+    const right = stackColumn([chart, detail, run]);
+
+    // Si on n'a qu'un seul côté, on le retourne direct
+    if (!left && !right) return null;
+    if (left && !right) return left;
+    if (!left && right) return right;
+
+    // Layout standard gauche/droite
+    return { direction: "row", first: left!, second: right! };
+}
+=====> src/layout/panelGraphToMosaic.ts :
+import type { MosaicNode } from "react-mosaic-component";
+import type { PanelGraph, PanelNode } from "../model/panelGraph";
+
+export type TileId = string;
+
+/**
+ * Projection métier → layout Mosaic
+ * SQUELETTE CANONIQUE
+ */
+export function panelGraphToMosaic(
+  graph: PanelGraph
+): MosaicNode<TileId> | null {
+
+  if (graph.panels.length === 0) {
+    return null;
+  }
+
+  // Helpers
+  const find = (kind: string) =>
+    graph.panels.find(p => p.kind === kind);
+
+  const findAll = (kind: string) =>
+    graph.panels.filter(p => p.kind === kind);
+
+  const strategies = find("strategies");
+  const nodered = find("nodered");
+  const strategyDetail = find("strategyDetail");
+  const charts = findAll("chart");
+  const runs = findAll("run");
+
+  // État 1 : démarrage (Strategies seul)
+  if (strategies && graph.panels.length === 1) {
+    return strategies.panelKey;
+  }
+
+  // LEFT column (fixe)
+  const leftColumn: MosaicNode<TileId> = {
+    direction: "column",
+    first: nodered?.panelKey ?? "EMPTY",
+    second: strategies?.panelKey ?? "EMPTY",
+  };
+
+  // RIGHT column (évolutive)
+  const rightColumn = buildRightColumn(
+    charts,
+    strategyDetail,
+    runs
+  );
+
+  return {
+    direction: "row",
+    first: leftColumn,
+    second: rightColumn,
+    splitPercentage: 30,
+  };
+}
+
+/**
+ * Construit la colonne droite :
+ * Chart
+ * StrategyDetail
+ * Run
+ */
+function buildRightColumn(
+  charts: PanelNode[],
+  strategyDetail?: PanelNode,
+  runs?: PanelNode[]
+): MosaicNode<TileId> {
+
+  // Chart : on prend la première instance pour l’itération 2
+  const chart = charts[0];
+  const run = runs?.[0];
+
+  // Cas : seulement StrategyDetail
+  if (!chart && !run && strategyDetail) {
+    return strategyDetail.panelKey;
+  }
+
+  // Cas Chart + StrategyDetail
+  if (chart && !run && strategyDetail) {
+    return {
+      direction: "column",
+      first: chart.panelKey,
+      second: strategyDetail.panelKey,
+    };
+  }
+
+  // Cas StrategyDetail + Run
+  if (!chart && run && strategyDetail) {
+    return {
+      direction: "column",
+      first: strategyDetail.panelKey,
+      second: run.panelKey,
+    };
+  }
+
+  // Cas Chart + StrategyDetail + Run
+  if (chart && run && strategyDetail) {
+    return {
+      direction: "column",
+      first: chart.panelKey,
+      second: {
+        direction: "column",
+        first: strategyDetail.panelKey,
+        second: run.panelKey,
+      },
+    };
+  }
+
+  // Fallback sécurité
+  return strategyDetail?.panelKey ?? "EMPTY";
+}
+=====> src/layout/panelGraphToTiles.ts :
+// src/layout/panelGraphToTiles.ts
+
+import type { PanelGraph, PanelKind } from "../model/panelModel";
+
+/**
+ * Une Tile représente UNE fenêtre Mosaic potentielle
+ * - group  : fenêtre avec onglets internes
+ * - panel  : fenêtre isolée
+ */
+export type Tile =
+  | {
+      type: "group";
+      groupKind: PanelKind;
+      panelKeys: string[];
+    }
+  | {
+      type: "panel";
+      panelKey: string;
+    };
+
+/**
+ * Projection pure :
+ * PanelGraph (métier) -> Tile[] (spatial abstrait)
+ *
+ * AUCUNE logique UI ici
+ * AUCUNE dépendance Mosaic
+ */
+export function panelGraphToTiles(
+  graph: PanelGraph
+): Tile[] {
+  const grouped: Record<PanelKind, string[]> = {} as any;
+  const floating: string[] = [];
+
+  for (const panel of Object.values(graph.panels)) {
+    if (panel.container.mode === "floating") {
+      floating.push(panel.panelKey);
+    } else {
+      const kind = panel.container.groupKind;
+      grouped[kind] ??= [];
+      grouped[kind].push(panel.panelKey);
+    }
+  }
+
+  const tiles: Tile[] = [];
+
+  // 1) Une tile par groupe (même avec 1 seul onglet)
+  for (const [kind, panelKeys] of Object.entries(grouped)) {
+    console.log(
+      "[GROUP TILE]",
+      kind,
+      panelKeys
+    );
+    tiles.push({
+      type: "group",
+      groupKind: kind as PanelKind,
+      panelKeys,
+    });
+  }  
+
+  // 2) Une tile par panel flottant
+  for (const panelKey of floating) {
+    tiles.push({
+      type: "panel",
+      panelKey,
+    });
+  }
+
+  return tiles;
+}
+=====> src/layout/tilesToMosaic.ts :
+// src/layout/tilesToMosaic.ts
+
+import type { MosaicNode } from "react-mosaic-component";
+import type { PanelKind } from "../model/panelModel";
+import type { Tile } from "./panelGraphToTiles";
+
+/**
+ * Identifiant utilisé par Mosaic
+ * - group:<kind>   -> fenêtre avec onglets internes
+ * - panel:<key>    -> panel isolé
+ */
+export type TileId =
+  | `group:${PanelKind}`
+  | `panel:${string}`;
+
+/**
+ * Conversion Tile -> TileId
+ */
+function tileToId(tile: Tile): TileId {
+  if (tile.type === "group") {
+    return `group:${tile.groupKind}`;
+  }
+  return `panel:${tile.panelKey}`;
+}
+
+/**
+ * Projection pure :
+ * Tile[] -> MosaicNode
+ *
+ * AUCUNE logique métier
+ * AUCUNE notion d’onglets
+ * Layout volontairement simple (colonne)
+ */
+export function tilesToMosaic(
+  tiles: Tile[]
+): MosaicNode<TileId> | null {
+  if (tiles.length === 0) {
+    return null;
+  }
+
+  const ids = tiles.map(tileToId);
+
+  if (ids.length === 1) {
+    return ids[0];
+  }
+
+  // Empilement vertical déterministe
+  let node: MosaicNode<TileId> = ids[0];
+
+  for (let i = 1; i < ids.length; i++) {
+    node = {
+      direction: "column",
+      first: node,
+      second: ids[i],
+    };
+  }
+
+  return node;
+}
+=====> src/layout/MosaicWorkspace.tsx :
+import "react-mosaic-component/react-mosaic-component.css";
+import { useMemo, useRef, useState } from "react";
+import { Mosaic, MosaicWindow } from "react-mosaic-component";
+import type { MosaicNode } from "react-mosaic-component";
+
+import type { PanelGraph } from "../model/panelModel";
+import { detachPanel as detachPanelFromGraph, attachPanel as attachPanelToGraph } from "../model/panelActions";
+
+import type { Tile } from "./panelGraphToTiles";
+import { panelGraphToTiles } from "./panelGraphToTiles";
+import type { TileId } from "./tilesToMosaic";
+import { buildBusinessLayout } from "./buildBusinessLayout";
+
+import { StrategyDetailPanel } from "../panels/StrategyDetailPanel";
+import { AttachDetachActions } from "../panels/AttachDetachActions";
+
+/* -------------------------------------------------------
+ * TileId helpers
+ * ----------------------------------------------------- */
+function isGroupTile(id: TileId): id is `group:${string}` {
+  return id.startsWith("group:");
+}
+function isPanelTile(id: TileId): id is `panel:${string}` {
+  return id.startsWith("panel:");
+}
+function groupKindFromId(id: `group:${string}`) {
+  return id.slice("group:".length);
+}
+function panelKeyFromId(id: `panel:${string}`) {
+  return id.slice("panel:".length);
+}
+function getGroupKind(panelKey: string): string {
+  // panelKey = "strategyDetail:S1" | "chart:S1:2" | "run:S1:1" | "nodered:S1"
+  return panelKey.split(":")[0];
+}
+function titleForGroupKind(kind: string) {
+  switch (kind) {
+    case "strategyDetail":
+      return "Strategy details";
+    case "chart":
+      return "Charts";
+    case "run":
+      return "Runs";
+    case "nodered":
+      return "Node-RED";
+    default:
+      return kind;
+  }
+}
+
+/* -------------------------------------------------------
+ * Layout helpers
+ * ----------------------------------------------------- */
+function removeFromLayout(
+  node: MosaicNode<TileId> | null,
+  id: TileId
+): MosaicNode<TileId> | null {
+  if (!node) return null;
+  if (node === id) return null;
+  if (typeof node === "string") return node;
+
+  const first = removeFromLayout(node.first, id);
+  const second = removeFromLayout(node.second, id);
+
+  if (!first) return second;
+  if (!second) return first;
+
+  return { ...node, first, second };
+}
+
+function layoutContainsId(
+  node: MosaicNode<TileId> | null,
+  id: TileId
+): boolean {
+  if (!node) return false;
+  if (node === id) return true;
+  if (typeof node === "string") return false;
+  return layoutContainsId(node.first, id) || layoutContainsId(node.second, id);
+}
+
+/* -------------------------------------------------------
+ * Props
+ * ----------------------------------------------------- */
+interface MosaicWorkspaceProps {
+  graph: PanelGraph;
+  setGraph: React.Dispatch<React.SetStateAction<PanelGraph>>;
+
+  onOpenStrategyDetail: (strategyId: string) => void;
+  onOpenChart: (strategyId: string, nb: number) => void;
+  onOpenRun: (strategyId: string, nb: number) => void;
+  onOpenNodered: (strategyId: string) => void;
+}
+
+/* -------------------------------------------------------
+ * MosaicWorkspace (layout utilisateur souverain)
+ * - Mosaic uncontrolled
+ * - Layout stocké en ref
+ * - On ne modifie le layout que sur apparition d’un NOUVEAU GROUPE
+ * ----------------------------------------------------- */
+export function MosaicWorkspace({
+  graph,
+  setGraph,
+  onOpenStrategyDetail,
+  onOpenChart,
+  onOpenRun,
+  onOpenNodered,
+}: MosaicWorkspaceProps) {
+  const tiles = useMemo<Tile[]>(() => panelGraphToTiles(graph), [graph]);
+
+  // Map des groupes (groupKind -> tile group)
+  const groupTileByKind = useMemo(() => {
+    const map = new Map<string, Extract<Tile, { type: "group" }>>();
+    for (const t of tiles) if (t.type === "group") map.set(t.groupKind, t);
+    return map;
+  }, [tiles]);
+
+  // Tabs / focus par groupe
+  const [activeStacks, setActiveStacks] = useState<Record<string, string[]>>(
+    {}
+  );
+
+  function renderAttachDetach(
+    panelKey: string,
+    tileContextIsGrouped: boolean
+  ) {
+    const groupKind = getGroupKind(panelKey);
+    const groupTile = groupTileByKind.get(groupKind);
+  
+    const inGroup = groupTile?.panelKeys.includes(panelKey) ?? false;
+    const groupSize = groupTile?.panelKeys.length ?? 0;
+  
+    const canDetach = tileContextIsGrouped && inGroup && groupSize > 1;
+  
+    if (inGroup) {
+      if (!canDetach) return null;
+  
+      return (
+        <AttachDetachActions
+          isGrouped={true}
+          onDetach={() => detachPanelUI(panelKey, groupKind)}
+          onAttach={() => attachPanelUI(panelKey, groupKind)}
+        />
+      );
+    }
+  
+    // panel détaché
+    return (
+      <AttachDetachActions
+        isGrouped={false}
+        onDetach={() => detachPanelUI(panelKey, groupKind)}
+        onAttach={() => attachPanelUI(panelKey, groupKind)}
+      />
+    );
+  }
+  
+  function activatePanel(groupKind: string, panelKey: string) {
+    setActiveStacks((s) => ({
+      ...s,
+      [groupKind]: [
+        ...(s[groupKind] ?? []).filter((k) => k !== panelKey),
+        panelKey,
+      ],
+    }));
+  }
+
+  function getActivePanelKey(groupKind: string, panelKeys: string[]) {
+    const stack = activeStacks[groupKind];
+    if (stack && stack.length) {
+      for (let i = stack.length - 1; i >= 0; i--) {
+        const k = stack[i];
+        if (panelKeys.includes(k)) return k;
+      }
+    }
+    return panelKeys[0];
+  }
+
+  // Layout impératif (hors state)
+  const layoutRef = useRef<MosaicNode<TileId> | null>(null);
+  const [, forceRender] = useState(0);
+
+  // Init layout UNE FOIS quand le 1er panel existe
+  if (!layoutRef.current && tiles.length > 0) {
+    layoutRef.current = buildBusinessLayout(tiles);
+  }
+
+  // Insère un GROUPE à droite de la racine (une seule fois)
+  function ensureGroupVisibleRightOfRoot(groupKind: string) {
+    if (!layoutRef.current) return;
+    const groupId = `group:${groupKind}` as TileId;
+    if (layoutContainsId(layoutRef.current, groupId)) return;
+
+    layoutRef.current = {
+      direction: "row",
+      first: layoutRef.current,
+      second: groupId,
+    };
+    forceRender((x) => x + 1);
+  }
+
+  /* -------------------------------------------------------
+   * Attach / Detach (METIER + LAYOUT)
+   * ----------------------------------------------------- */
+  function detachPanelUI(panelKey: string, groupKind: string) {
+    // 1) METIER : sortir du groupe (donc plus d’onglet)
+    setGraph((g) => detachPanelFromGraph(g, panelKey));
+
+    // 2) LAYOUT : ajouter comme panel isolé
+    if (!layoutRef.current) return;
+    const panelId = `panel:${panelKey}` as TileId;
+
+    if (!layoutContainsId(layoutRef.current, panelId)) {
+      layoutRef.current = {
+        direction: "row",
+        first: layoutRef.current,
+        second: panelId,
+      };
+    }
+
+    forceRender((x) => x + 1);
+  }
+
+  function attachPanelUI(panelKey: string, groupKind: string) {
+    // 1) METIER : rattacher au groupe (donc onglet)
+    setGraph((g) => attachPanelToGraph(g, panelKey, groupKind));
+
+    // 2) LAYOUT : enlever la fenêtre isolée
+    if (!layoutRef.current) return;
+    const panelId = `panel:${panelKey}` as TileId;
+
+    layoutRef.current = removeFromLayout(layoutRef.current, panelId);
+    forceRender((x) => x + 1);
+  }
+
+  /* ------------------------------
+   * UI: Tabs
+   * ---------------------------- */
+  function Tabs({
+    groupKind,
+    panelKeys,
+  }: {
+    groupKind: string;
+    panelKeys: string[];
+  }) {
+    const active = getActivePanelKey(groupKind, panelKeys);
+
+    return (
+      <div
+        style={{
+          display: "flex",
+          gap: 6,
+          borderBottom: "1px solid #ccc",
+          marginBottom: 8,
+          paddingBottom: 4,
+          flexWrap: "wrap",
+        }}
+      >
+        {panelKeys.map((key) => (
+          <button
+            key={key}
+            onClick={() => activatePanel(groupKind, key)}
+            style={{ fontWeight: key === active ? "bold" : "normal" }}
+          >
+            {key.split(":").pop() ?? key}
+          </button>
+        ))}
+      </div>
+    );
+  }
+
+  /* ------------------------------
+   * Render contenu panel
+   * ---------------------------- */
+  function renderPanel(panelKey: string, options?: { isGrouped?: boolean }) {
+    const tileContextIsGrouped = options?.isGrouped === true;
+
+    /* =========================
+     * Strategies (racine)
+     * ========================= */
+    if (panelKey === "strategies") {
+      return (
+        <div>
+          <div style={{ marginBottom: 8, fontWeight: 700 }}>Strategies</div>
+
+          <button
+            onClick={() => {
+              const sid = "S1";
+              const pk = `strategyDetail:${sid}`;
+              onOpenStrategyDetail(sid);
+
+              ensureGroupVisibleRightOfRoot("strategyDetail");
+              activatePanel("strategyDetail", pk);
+            }}
+          >
+            Open StrategyDetail S1
+          </button>{" "}
+          <button
+            onClick={() => {
+              const sid = "S2";
+              const pk = `strategyDetail:${sid}`;
+              onOpenStrategyDetail(sid);
+
+              ensureGroupVisibleRightOfRoot("strategyDetail");
+              activatePanel("strategyDetail", pk);
+            }}
+          >
+            Open StrategyDetail S2
+          </button>{" "}
+          <button
+            onClick={() => {
+              const sid = "S3";
+              const pk = `strategyDetail:${sid}`;
+              onOpenStrategyDetail(sid);
+
+              ensureGroupVisibleRightOfRoot("strategyDetail");
+              activatePanel("strategyDetail", pk);
+            }}
+          >
+            Open StrategyDetail S3
+          </button>
+        </div>
+      );
+    }
+
+    /* =========================
+     * StrategyDetail
+     * ========================= */
+
+    if (panelKey.startsWith("strategyDetail:")) {
+      const sid = panelKey.split(":")[1];  
+      return (
+        <div>
+          {renderAttachDetach(panelKey, tileContextIsGrouped)}
+    
+          <StrategyDetailPanel
+            sid={sid}
+            onOpenChart={(nb) => onOpenChart(sid, nb)}
+            onOpenRun={(nb) => onOpenRun(sid, nb)}
+            onOpenNodered={() => onOpenNodered(sid)}
+          />
+        </div>
+      );
+    }
+
+    /* =========================
+     * Chart
+     * ========================= */
+
+    if (panelKey.startsWith("chart:")) {
+      const [, sid, nb] = panelKey.split(":");
+    
+      return (
+        <div>
+          {renderAttachDetach(panelKey, tileContextIsGrouped)}
+    
+          <ChartPanel
+            strategyId={sid}
+            nb={Number(nb)}
+          />
+        </div>
+      );
+    }
+    
+    /* =========================
+     * Run
+     * ========================= */
+
+    if (panelKey.startsWith("run:")) {
+      const [, sid, nb] = panelKey.split(":");
+    
+      return (
+        <div>
+          {renderAttachDetach(panelKey, tileContextIsGrouped)}
+    
+          <RunPanel
+            strategyId={sid}
+            nb={Number(nb)}
+          />
+        </div>
+      );
+    }
+    
+    /* =========================
+     * NodeRED
+     * ========================= */
+
+    if (panelKey.startsWith("nodered:")) {
+      const sid = panelKey.split(":")[1];
+    
+      return (
+        <div>
+          {renderAttachDetach(panelKey, tileContextIsGrouped)}
+    
+          <NodeRedPanel strategyId={sid} />
+        </div>
+      );
+    }
+    
+    /* =========================
+     * Fallback
+     * ========================= */
+    return <div>{panelKey}</div>;
+  }
+
+  /* ------------------------------
+   * renderTile Mosaic
+   * ---------------------------- */
+  function renderTile(id: TileId, path: any) {
+    if (isGroupTile(id)) {
+      const groupKind = groupKindFromId(id);
+      const tile = groupTileByKind.get(groupKind);
+      if (!tile) return null;
+
+      const activePanelKey = getActivePanelKey(groupKind, tile.panelKeys);
+
+      return (
+        <MosaicWindow<TileId>
+          path={path}
+          title={titleForGroupKind(groupKind)}
+          toolbarControls={[]}
+        >
+          <div style={{ padding: 8 }}>
+            <Tabs groupKind={groupKind} panelKeys={tile.panelKeys} />
+            {renderPanel(activePanelKey, { isGrouped: true })}
+          </div>
+        </MosaicWindow>
+      );
+    }
+
+    if (isPanelTile(id)) {
+      const panelKey = panelKeyFromId(id);
+      return (
+        <MosaicWindow<TileId> path={path} title={panelKey} toolbarControls={[]}>
+          <div style={{ padding: 8 }}>{renderPanel(panelKey, { isGrouped: false })}</div>
+        </MosaicWindow>
+      );
+    }
+
+    return null;
+  }
+
+  /* ------------------------------
+   * Empty state
+   * ---------------------------- */
+  if (!layoutRef.current) {
+    return (
+      <div
+        style={{
+          height: "100%",
+          border: "1px solid #ddd",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          color: "#777",
+        }}
+      >
+        Aucun panel ouvert — clique sur “Open Strategies”
+      </div>
+    );
+  }
+
+  /* ------------------------------
+   * Mosaic uncontrolled
+   * ---------------------------- */
+  return (
+    <Mosaic<TileId>
+      initialValue={layoutRef.current}
+      onChange={(next) => {
+        layoutRef.current = next; // on mémorise les resize/DnD
+      }}
+      renderTile={renderTile}
+    />
+  );
+  
+
+}
+=====> src/layout/placeNewPanel.ts :
+import type { Tile } from "./panelGraphToTiles";
+
+export type Direction = "left" | "right" | "top" | "bottom";
+
+export type Placement =
+  | {
+      kind: "tab";
+      groupKind: string;
+    }
+  | {
+      kind: "split";
+      anchorPanelKey: string;
+      direction: Direction;
+    };
+
+function defaultDirectionForPanel(kind: string): Direction {
+  switch (kind) {
+    case "strategyDetail":
+      return "right";
+    case "nodered":
+      return "top";
+    case "chart":
+      return "bottom";
+    case "run":
+      return "right";
+    default:
+      return "right";
+  }
+}
+
+export function placeNewPanel(args: {
+  anchorPanelKey: string | null;
+  newPanel: { panelKey: string; kind: string };
+  tiles: Tile[];
+}): Placement {
+  const { anchorPanelKey, newPanel, tiles } = args;
+
+  // 1️⃣ Si un groupe du même type existe déjà → ONGLET
+  const hasGroup = tiles.some(
+    (t) => t.type === "group" && t.groupKind === newPanel.kind
+  );
+
+  if (hasGroup) {
+    return {
+      kind: "tab",
+      groupKind: newPanel.kind,
+    };
+  }
+
+  // 2️⃣ Sinon → split par rapport à l’ancre
+  if (anchorPanelKey) {
+    return {
+      kind: "split",
+      anchorPanelKey,
+      direction: defaultDirectionForPanel(newPanel.kind),
+    };
+  }
+
+  // 3️⃣ Fallback ultime
+  return {
+    kind: "split",
+    anchorPanelKey: "strategies",
+    direction: defaultDirectionForPanel(newPanel.kind),
+  };
+}
+=====> src/layout/insertPanelRelativeToAnchor.ts :
+import type { MosaicNode } from "react-mosaic-component";
+import type { TileId } from "./tilesToMosaic";
+import type { Direction } from "./placeNewPanel";
+
+export function insertPanelRelativeToAnchor(
+  layout: MosaicNode<TileId>,
+  anchorPanelKey: string,
+  direction: Direction,
+  newPanelKey: string
+): MosaicNode<TileId> {
+  const anchorId = `panel:${anchorPanelKey}` as TileId;
+  const newId = `panel:${newPanelKey}` as TileId;
+
+  function walk(node: MosaicNode<TileId>): MosaicNode<TileId> {
+    if (node === anchorId) {
+      if (direction === "left") {
+        return { direction: "row", first: newId, second: node };
+      }
+      if (direction === "right") {
+        return { direction: "row", first: node, second: newId };
+      }
+      if (direction === "top") {
+        return { direction: "column", first: newId, second: node };
+      }
+      return { direction: "column", first: node, second: newId };
+    }
+
+    if (typeof node === "string") return node;
+
+    return {
+      ...node,
+      first: walk(node.first),
+      second: walk(node.second),
+    };
+  }
+
+  return walk(layout);
+}
+=====> src/main.tsx :
+import { StrictMode } from 'react'
+import { createRoot } from 'react-dom/client'
+import './index.css'
+import App from './App.tsx'
+
+createRoot(document.getElementById('root')!).render(
+    <App />,
+)
+=====> src/model/panelActions.ts :
+// src/model/panelActions.ts
+
+import {
+  isGroupable,
+  canGroup,
+  validatePanelGraph,
+} from "./panelModel";
+
+import type {
+  PanelGraph,
+  PanelNode,
+  PanelKind,
+} from "./panelModel";
+
+/* -------------------------------------------------------
+ * openPanel
+ * ----------------------------------------------------- */
+/**
+ * Ouvre un panel :
+ * - s’il existe déjà → no-op
+ * - sinon → création avec container par défaut
+ */
+export function openPanel(
+  graph: PanelGraph,
+  panel: Omit<PanelNode, "container">
+): PanelGraph {
+  // Panel déjà présent → rien à faire
+  if (graph.panels[panel.panelKey]) {
+    return graph;
+  }
+
+  const container = isGroupable(panel.kind)
+    ? { mode: "grouped", groupKind: panel.kind as PanelKind }
+    : { mode: "floating" as const };
+
+  const next: PanelGraph = {
+    panels: {
+      ...graph.panels,
+      [panel.panelKey]: {
+        ...panel,
+        container,
+      },
+    },
+  };
+
+  validatePanelGraph(next);
+  return next;
+}
+
+/* -------------------------------------------------------
+ * detachPanel
+ * ----------------------------------------------------- */
+/**
+ * Détache un panel (onglet → panel flottant)
+ */
+export function detachPanel(
+  graph: PanelGraph,
+  panelKey: string
+): PanelGraph {
+  const panel = graph.panels[panelKey];
+  if (!panel) return graph;
+
+  if (panel.container.mode === "floating") {
+    return graph;
+  }
+
+  const next: PanelGraph = {
+    panels: {
+      ...graph.panels,
+      [panelKey]: {
+        ...panel,
+        container: { mode: "floating" },
+      },
+    },
+  };
+
+  validatePanelGraph(next);
+  return next;
+}
+
+/* -------------------------------------------------------
+ * attachPanel
+ * ----------------------------------------------------- */
+/**
+ * Rattache un panel flottant dans un groupe
+ */
+export function attachPanel(
+  graph: PanelGraph,
+  panelKey: string,
+  targetGroupKind: PanelKind
+): PanelGraph {
+  const panel = graph.panels[panelKey];
+  if (!panel) return graph;
+
+  if (!canGroup(panel.kind, targetGroupKind)) {
+    throw new Error(
+      `Cannot attach panel ${panelKey} of kind ${panel.kind} to group ${targetGroupKind}`
+    );
+  }
+
+  const next: PanelGraph = {
+    panels: {
+      ...graph.panels,
+      [panelKey]: {
+        ...panel,
+        container: {
+          mode: "grouped",
+          groupKind: targetGroupKind,
+        },
+      },
+    },
+  };
+
+  validatePanelGraph(next);
+  return next;
+}
+
+/* -------------------------------------------------------
+ * closePanel
+ * ----------------------------------------------------- */
+/**
+ * Ferme définitivement un panel
+ */
+export function closePanel(
+  graph: PanelGraph,
+  panelKey: string
+): PanelGraph {
+  if (!graph.panels[panelKey]) {
+    return graph;
+  }
+
+  const { [panelKey]: _, ...rest } = graph.panels;
+
+  const next: PanelGraph = {
+    panels: rest,
+  };
+
+  validatePanelGraph(next);
+  return next;
+}
+=====> src/model/panelGraph.ts :
+// src/model/panelGraph.ts
+
+export type PanelKind =
+  | "strategies"
+  | "strategyDetail"
+  | "chart"
+  | "run"
+  | "nodered";
+
+export type PanelNode = {
+  panelKey: string;
+  kind: PanelKind;
+  strategyId?: string;
+};
+
+export type PanelGraph = {
+  panels: PanelNode[];
+};
+
+export function createPanelGraph(): PanelGraph {
+  return { panels: [] };
+}
+
+export function openPanel(
+  graph: PanelGraph,
+  panel: PanelNode
+): PanelGraph {
+  if (graph.panels.some(p => p.panelKey === panel.panelKey)) {
+    return graph;
+  }
+
+  return {
+    ...graph,
+    panels: [...graph.panels, panel],
+  };
+}
+
+export function closePanel(
+  graph: PanelGraph,
+  panelKey: string
+): PanelGraph {
+  return {
+    ...graph,
+    panels: graph.panels.filter(
+      p => p.panelKey !== panelKey
+    ),
+  };
+}
+=====> src/model/panelModel.ts :
+// src/model/panelModel.ts
+
+export type PanelKind =
+  | "strategies"
+  | "strategyDetail"
+  | "chart"
+  | "run"
+  | "nodered";
+
+export type PanelContainer =
+  | { mode: "grouped"; groupKind: PanelKind }
+  | { mode: "floating" };
+
+export type PanelNode = {
+  panelKey: string;
+  kind: PanelKind;
+  strategyId?: string;
+  instanceKey?: string;
+  container: PanelContainer;
+};
+
+export type PanelGraph = {
+  panels: Record<string, PanelNode>;
+};
+
+export function isGroupable(kind: PanelKind): boolean {
+  return kind !== "strategies";
+}
+
+export function canGroup(
+  panelKind: PanelKind,
+  groupKind: PanelKind
+): boolean {
+  return panelKind === groupKind;
+}
+
+export function validatePanelGraph(_: PanelGraph): void {
+  // no-op pour l’instant
+}
+=====> src/panels/AttachDetachActions.tsx :
+console.log("🔥 REAL AttachDetachActions LOADED");
+
+export interface AttachDetachActionsProps {
+  isGrouped: boolean;
+  onDetach: () => void;
+  onAttach: () => void;
+}
+
+export function AttachDetachActions({
+  isGrouped,
+  onDetach,
+  onAttach,
+}: AttachDetachActionsProps) {
+  return (
+    <div style={{ marginBottom: 8 }}>
+      {isGrouped ? (
+        <button onClick={onDetach}>Detach this tab</button>
+      ) : (
+        <button onClick={onAttach}>Attach to group</button>
+      )}
+    </div>
+  );
+}
+=====> src/panels/StrategyDetailPanel.tsx :
+import React from "react";
+
+type Props = {
+  sid: string;
+  children?: React.ReactNode;
+  onOpenChart: (nb: number) => void;
+  onOpenRun: (nb: number) => void;
+  onOpenNodered: () => void;
+};
+
+export function StrategyDetailPanel({
+  sid,
+  onOpenChart,
+  onOpenRun,
+  onOpenNodered,
+  children,
+}: Props) {
+    console.log("StrategyDetailPanel");
+  return (
+    <div>
+      <div style={{ marginBottom: 8, fontWeight: 700 }}>
+        StrategyDetail {sid}
+      </div>
+
+      <button onClick={() => onOpenChart(1)}>
+        Open Chart {sid}:1
+      </button>{" "}
+      <button onClick={() => onOpenChart(2)}>
+        Open Chart {sid}:2
+      </button>{" "}
+      <button onClick={() => onOpenRun(1)}>
+        Open Run {sid}:1
+      </button>{" "}
+      <button onClick={onOpenNodered}>
+        Open Nodered {sid}
+      </button>
+
+      {children}
+    </div>
+  );
+}
+=====> src/panels/ChartPanel.tsx :
+export function ChartPanel({
+    strategyId,
+    nb,
+  }: {
+    strategyId: string;
+    nb: number;
+  }) {
+    return (
+      <div>
+        <h3>Chart {nb}</h3>
+        <div>Strategy: {strategyId}</div>
+      </div>
+    );
+  }
+  =====> src/panels/RunPanel.tsx :
+export function RunPanel({
+    strategyId,
+    nb,
+  }: {
+    strategyId: string;
+    nb: number;
+  }) {
+    return (
+      <div>
+        <h3>Run {nb}</h3>
+        <div>Strategy: {strategyId}</div>
+      </div>
+    );
+  }
+  =====> src/panels/NodeRedPanel.tsx :
+export function NodeRedPanel({
+    strategyId,
+  }: {
+    strategyId: string;
+  }) {
+    return (
+      <div>
+        <h3>Node‑RED</h3>
+        <div>Strategy: {strategyId}</div>
+      </div>
+    );
+  }
+  

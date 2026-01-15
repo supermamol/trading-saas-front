@@ -1,5 +1,5 @@
 import "react-mosaic-component/react-mosaic-component.css";
-import { useMemo, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Mosaic, MosaicWindow } from "react-mosaic-component";
 import type { MosaicNode } from "react-mosaic-component";
 
@@ -12,6 +12,9 @@ import type { TileId } from "./tilesToMosaic";
 import { buildBusinessLayout } from "./buildBusinessLayout";
 
 import { StrategyDetailPanel } from "../panels/StrategyDetailPanel";
+import { ChartPanel } from "../panels/ChartPanel";
+import { RunPanel } from "../panels/RunPanel";
+import { NodeRedPanel } from "../panels/NodeRedPanel";
 import { AttachDetachActions } from "../panels/AttachDetachActions";
 
 /* -------------------------------------------------------
@@ -28,6 +31,10 @@ function groupKindFromId(id: `group:${string}`) {
 }
 function panelKeyFromId(id: `panel:${string}`) {
   return id.slice("panel:".length);
+}
+function getGroupKind(panelKey: string): string {
+  // panelKey = "strategyDetail:S1" | "chart:S1:2" | "run:S1:1" | "nodered:S1"
+  return panelKey.split(":")[0];
 }
 function titleForGroupKind(kind: string) {
   switch (kind) {
@@ -115,6 +122,40 @@ export function MosaicWorkspace({
     {}
   );
 
+  function renderAttachDetach(
+    panelKey: string,
+    tileContextIsGrouped: boolean
+  ) {
+    const groupKind = getGroupKind(panelKey);
+    const groupTile = groupTileByKind.get(groupKind);
+
+    const inGroup = groupTile?.panelKeys.includes(panelKey) ?? false;
+    const groupSize = groupTile?.panelKeys.length ?? 0;
+
+    const canDetach = tileContextIsGrouped && inGroup && groupSize > 1;
+
+    if (inGroup) {
+      if (!canDetach) return null;
+
+      return (
+        <AttachDetachActions
+          isGrouped={true}
+          onDetach={() => detachPanelUI(panelKey, groupKind)}
+          onAttach={() => attachPanelUI(panelKey, groupKind)}
+        />
+      );
+    }
+
+    // panel détaché
+    return (
+      <AttachDetachActions
+        isGrouped={false}
+        onDetach={() => detachPanelUI(panelKey, groupKind)}
+        onAttach={() => attachPanelUI(panelKey, groupKind)}
+      />
+    );
+  }
+
   function activatePanel(groupKind: string, panelKey: string) {
     setActiveStacks((s) => ({
       ...s,
@@ -158,6 +199,30 @@ export function MosaicWorkspace({
     };
     forceRender((x) => x + 1);
   }
+
+  useEffect(() => {
+    if (!layoutRef.current) return;
+
+    let changed = false;
+
+    // Dès qu'un nouveau groupe apparaît dans tiles, on le rend visible dans le layout
+    for (const t of tiles) {
+      if (t.type !== "group") continue;
+
+      const groupId = `group:${t.groupKind}` as TileId;
+
+      if (!layoutContainsId(layoutRef.current, groupId)) {
+        layoutRef.current = {
+          direction: "row",
+          first: layoutRef.current,
+          second: groupId,
+        };
+        changed = true;
+      }
+    }
+
+    if (changed) forceRender((x) => x + 1);
+  }, [tiles]);
 
   /* -------------------------------------------------------
    * Attach / Detach (METIER + LAYOUT)
@@ -286,36 +351,12 @@ export function MosaicWorkspace({
     /* =========================
      * StrategyDetail
      * ========================= */
+
     if (panelKey.startsWith("strategyDetail:")) {
       const sid = panelKey.split(":")[1];
-      const groupKind = "strategyDetail";
-
-      const groupTile = groupTileByKind.get(groupKind);
-      const inGroup = groupTile?.panelKeys.includes(panelKey) ?? false;
-      const groupSize = groupTile?.panelKeys.length ?? 0;
-
-      // Règle: un groupe avec 1 seul panel => pas détachable
-      const canDetach = tileContextIsGrouped && inGroup && groupSize > 1;
-
       return (
         <div>
-          {/* Onglet dans un groupe: Detach seulement si groupSize > 1
-              Panel détaché: bouton Attach */}
-          {inGroup ? (
-            canDetach ? (
-              <AttachDetachActions
-                isGrouped={true}
-                onDetach={() => detachPanelUI(panelKey, groupKind)}
-                onAttach={() => attachPanelUI(panelKey, groupKind)}
-              />
-            ) : null
-          ) : (
-            <AttachDetachActions
-              isGrouped={false}
-              onDetach={() => detachPanelUI(panelKey, groupKind)}
-              onAttach={() => attachPanelUI(panelKey, groupKind)}
-            />
-          )}
+          {renderAttachDetach(panelKey, tileContextIsGrouped)}
 
           <StrategyDetailPanel
             sid={sid}
@@ -323,6 +364,60 @@ export function MosaicWorkspace({
             onOpenRun={(nb) => onOpenRun(sid, nb)}
             onOpenNodered={() => onOpenNodered(sid)}
           />
+        </div>
+      );
+    }
+
+    /* =========================
+     * Chart
+     * ========================= */
+
+    if (panelKey.startsWith("chart:")) {
+      const [, sid, nb] = panelKey.split(":");
+
+      return (
+        <div>
+          {renderAttachDetach(panelKey, tileContextIsGrouped)}
+
+          <ChartPanel
+            strategyId={sid}
+            nb={Number(nb)}
+          />
+        </div>
+      );
+    }
+
+    /* =========================
+     * Run
+     * ========================= */
+
+    if (panelKey.startsWith("run:")) {
+      const [, sid, nb] = panelKey.split(":");
+
+      return (
+        <div>
+          {renderAttachDetach(panelKey, tileContextIsGrouped)}
+
+          <RunPanel
+            strategyId={sid}
+            nb={Number(nb)}
+          />
+        </div>
+      );
+    }
+
+    /* =========================
+     * NodeRED
+     * ========================= */
+
+    if (panelKey.startsWith("nodered:")) {
+      const sid = panelKey.split(":")[1];
+
+      return (
+        <div>
+          {renderAttachDetach(panelKey, tileContextIsGrouped)}
+
+          <NodeRedPanel strategyId={sid} />
         </div>
       );
     }
@@ -402,6 +497,6 @@ export function MosaicWorkspace({
       renderTile={renderTile}
     />
   );
-  
+
 
 }

@@ -20,6 +20,7 @@ import type {
  * - s’il existe déjà → no-op
  * - sinon → création avec container par défaut
  */
+ // openPanel ne crée jamais le panel “strategies” par défaut.
 export function openPanel(
   graph: PanelGraph,
   panel: Omit<PanelNode, "container">
