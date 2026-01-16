@@ -403,4 +403,323 @@ Mosaic ne connaît pas :
     Mosaic gère le layout, le métier gère le sens
 
 
+_______________________________________________________________________________
+
+
+🪟 Panels détachés — Spécification fonctionnelle
+1️⃣ Objectif
+
+Définir le comportement des panels détachés en fenêtre indépendante, en garantissant :
+
+    une sémantique métier claire
+
+    l’absence d’état implicite ou magique
+
+    une parfaite cohérence avec les règles d’ouverture standards (openPanel())
+
+Cette spec s’applique à tous les types de panels, sans exception.
+2️⃣ Principe fondamental
+
+    Un panel détaché n’appartient plus au workspace.
+
+Conséquences :
+
+    il est retiré du layout Mosaic
+
+    le workspace est immédiatement recalculé sans lui
+
+    la fenêtre détachée contient un seul panel
+
+    il n’existe aucun lien structurel persistant avec l’ancien layout
+
+Il ne s’agit ni d’un plein écran,
+ni d’un mode focus,
+mais d’un détachement réel.
+3️⃣ Détachement d’un panel
+3.1 Action utilisateur
+
+    action explicite sur un panel :
+
+        “Détacher en fenêtre”
+
+        icône ↗ / ⧉
+
+    jamais automatique
+
+3.2 Effets immédiats
+
+    le panel est :
+
+        supprimé de son container
+
+        le container est supprimé s’il devient vide
+
+    le layout Mosaic est mis à jour
+
+    une nouvelle fenêtre est ouverte
+
+    la fenêtre contient :
+
+        exactement un panel
+
+        avec son kind et son context
+
+4️⃣ Coexistence de plusieurs fenêtres
+
+    plusieurs panels peuvent être détachés simultanément
+
+    chaque panel vit dans sa propre fenêtre
+
+    l’OS / navigateur gère :
+
+        la taille
+
+        la position
+
+        le côte‑à‑côte
+
+        le multi‑écran
+
+👉 Le système n’impose aucune limite artificielle.
+5️⃣ Fermeture de la fenêtre
+
+Il existe deux chemins distincts, avec des sémantiques différentes.
+5.1 Fermeture “brutale” (OS / navigateur)
+Exemples
+
+    clic sur la croix native de la fenêtre
+
+    raccourci OS (Alt+F4, Cmd+W)
+
+    crash / refresh
+
+Effet
+
+    ❌ perte définitive du panel
+
+    aucun événement de retour
+
+    aucune ré‑insertion automatique
+
+Sémantique métier
+
+    Fermer brutalement la fenêtre = fermer le panel.
+
+Ce comportement est :
+
+    simple
+
+    explicite
+
+    sans surprise
+
+    conforme à un usage expert
+
+5.2 Fermeture via le bouton “Retour au workspace”
+UX
+
+    bouton explicite dans la fenêtre :
+
+        “⤢ Retour au workspace”
+
+        ou “Replacer dans le layout”
+
+Effet
+
+    la fenêtre déclenche une intention métier
+
+    un événement est envoyé au workspace
+
+    le panel est ré‑ouvert, pas restauré
+
+6️⃣ Ré‑insertion dans le workspace
+6.1 Principe clé
+
+    Le retour d’un panel détaché est traité comme une ouverture normale.
+
+Il n’y a :
+
+    ❌ pas de restauration de position
+
+    ❌ pas de snapshot du layout précédent
+
+    ❌ pas de logique spéciale
+
+6.2 Événement émis
+
+Conceptuellement :
+
+openPanel(kind, context)
+
+ou, de façon équivalente :
+
+PanelReturnEvent = {
+  type: "PANEL_RETURN",
+  kind: PanelKind,
+  context: PanelContext
+}
+
+6.3 Règles appliquées
+
+La ré‑insertion suit exactement la spec openPanel() :
+
+    calcul de la GroupKey
+
+    recherche d’un container existant compatible
+
+        → ajout en onglet
+
+    sinon :
+
+        création d’un nouveau container
+
+        placement dans la zone par défaut du type
+
+👉 Le panel peut donc :
+
+    revenir dans un autre container
+
+    rejoindre un onglet existant
+
+    apparaître à un autre endroit qu’avant
+
+C’est volontaire et assumé.
+7️⃣ Cycle de vie récapitulatif
+
+Workspace
+   │
+   ├─ Détacher → Fenêtre indépendante
+   │               │
+   │               ├─ Fermeture OS
+   │               │        → panel fermé (perdu)
+   │               │
+   │               └─ Bouton "Retour"
+   │                        ↓
+   └──────────── openPanel(kind, context)
+
+
+8️⃣ Invariants garantis
+
+    un panel n’est jamais dupliqué
+
+    un panel est soit :
+
+        dans le workspace
+
+        soit dans une fenêtre
+
+    jamais les deux
+
+    aucun état caché
+
+    aucune restauration implicite
+
+    toutes les règles passent par openPanel()
+
+9️⃣ Ce que cette spec exclut explicitement
+
+    ❌ plein écran “toggle”
+
+    ❌ retour automatique à la position précédente
+
+    ❌ mode focus implicite
+
+    ❌ duplication workspace ↔ fenêtre
+
+    ❌ logique spéciale par type de panel
+
+🔚 Résumé exécutif
+
+    Le détachement ouvre un panel dans une fenêtre indépendante et le retire du workspace.
+    La fermeture de la fenêtre ferme le panel.
+    Le bouton “Retour au workspace” déclenche une ré‑ouverture standard via openPanel(), sans restauration de layout.
+
+__________________________________________________________________________________
+
+🧪 Tableau — Actions ↔ Invariants impactés
+
+    Objectif : savoir exactement quels invariants doivent rester vrais après chaque action utilisateur ou système.
+
+🔹 Légende rapide des invariants
+
+    A* : invariants structurels
+
+    B* : cycle de vie
+
+    C* : règles métier / openPanel
+
+    D* : indépendance du layout
+
+    E* : nettoyage / cohérence
+
+(Référence aux invariants listés précédemment)
+📋 Tableau de synthèse
+
+| Action                                                  | Invariants impactés        | Ce qui doit être vérifié                                                  |
+| ------------------------------------------------------- | -------------------------- | ------------------------------------------------------------------------- |
+| **openPanel(kind, context)**                            | A1, C1, C2, E2             | Panel présent une seule fois, regroupement par GroupKey, workspace valide |
+| **openPanel avec container existant**                   | A1, C1, C2                 | Ajout en onglet, pas de nouveau container                                 |
+| **openPanel sans container existant**                   | A1, C1, E2                 | Création d’un container dans la zone par défaut                           |
+| **detachPanel(panel)**                                  | A1, A2, A3, B1, D2, E1, E2 | Panel retiré du workspace, fenêtre créée, container vide supprimé         |
+| **detach dernier tab d’un container**                   | A2, E1, E2                 | Container supprimé, pas de container vide                                 |
+| **ouvrir plusieurs panels détachés**                    | A1, A3, B1                 | Une fenêtre = un panel, aucune duplication                                |
+| **fermeture fenêtre (OS / brute)**                      | B2, E2                     | Panel définitivement perdu, aucun event workspace                         |
+| **clic “Retour au workspace”**                          | B3, C1, C2, D1, E2         | Émission `openPanel`, pas de restauration de position                     |
+| **retour alors qu’un container compatible existe**      | C1, C2                     | Ajout en onglet dans le bon container                                     |
+| **retour alors qu’aucun container compatible n’existe** | C1, E2                     | Nouveau container créé dans la zone par défaut                            |
+| **double clic / retour multiple**                       | C3, A1, E2                 | Idempotence : pas de duplication, état stable                             |
+| **fermer un panel dans le workspace**                   | A1, E1, E2                 | Suppression du tab, suppression du container si vide                      |
+| **fermer un panel détaché via bouton “Fermer”**         | B2, E2                     | Fermeture équivalente à fermeture OS                                      |
+| **modifier le layout après detach (sans Mosaic)**       | D2, E2                     | Aucune dépendance au layout, invariants inchangés                         |
+| **ré‑ouvrir un panel précédemment perdu**               | C1, C2, E2                 | Comportement identique à une ouverture normale                            |
+
+
+🧠 Lecture rapide (ce qu’il faut retenir)
+Actions critiques (à tester en priorité)
+
+    detachPanel
+
+    fermeture OS de la fenêtre
+
+    bouton “Retour au workspace”
+
+    retour avec GroupKey déjà existante
+
+Invariants les plus sensibles
+
+    A1 — exclusivité panel
+
+    C2 — respect de la GroupKey
+
+    E1 — pas de container vide
+
+    D1 — aucune restauration implicite
+
+Si un seul de ceux‑là casse, il faut corriger avant Mosaic.
+🧪 Utilisation concrète du tableau
+
+Tu peux l’utiliser comme :
+
+    ✅ checklist de tests manuels
+
+    🧪 base de tests unitaires
+
+    📋 critères d’acceptation du POC
+
+    🧱 garde‑fou avant intégration Mosaic
+
+🧠 Version ultra‑condensée (si tu veux la coller en tête de test plan)
+
+    Chaque action doit préserver :
+
+        l’exclusivité panel (workspace ou fenêtre)
+
+        le regroupement par GroupKey
+
+        l’absence de restauration implicite
+
+        la suppression des containers vides
+
+        la validité globale du workspace
+
 
