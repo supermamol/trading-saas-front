@@ -17,6 +17,9 @@ import { RunPanel } from "../panels/RunPanel";
 import { NodeRedPanel } from "../panels/NodeRedPanel";
 import { AttachDetachActions } from "../panels/AttachDetachActions";
 
+import { placeNewPanel } from "./placeNewPanel";
+import { insertPanelRelativeToAnchor } from "./insertPanelRelativeToAnchor";
+
 /* -------------------------------------------------------
  * TileId helpers
  * ----------------------------------------------------- */
@@ -200,6 +203,38 @@ export function MosaicWorkspace({
     forceRender((x) => x + 1);
   }
 
+  function placePanelInLayout(
+    newPanelKey: string,
+    newPanelKind: string,
+    anchorPanelKey: string | null
+  ) {
+    if (!layoutRef.current) return;
+
+    const placement = placeNewPanel({
+      anchorPanelKey,
+      newPanel: {
+        panelKey: newPanelKey,
+        kind: newPanelKind,
+      },
+      tiles,
+    });
+
+    // 🟢 Cas ONGLET → rien à faire côté Mosaic
+    if (placement.kind === "tab") {
+      return;
+    }
+
+    // 🟢 Cas SPLIT → insertion relative
+    layoutRef.current = insertPanelRelativeToAnchor(
+      layoutRef.current,
+      placement.anchorPanelKey,
+      placement.direction,
+      newPanelKey
+    );
+
+    forceRender((x) => x + 1);
+  }
+
   useEffect(() => {
     if (!layoutRef.current) return;
 
@@ -314,7 +349,12 @@ export function MosaicWorkspace({
               const pk = `strategyDetail:${sid}`;
               onOpenStrategyDetail(sid);
 
-              ensureGroupVisibleRightOfRoot("strategyDetail");
+              placePanelInLayout(
+                pk,
+                "strategyDetail",
+                "strategies" // ancre = panel appelant
+              );
+
               activatePanel("strategyDetail", pk);
             }}
           >
@@ -326,7 +366,12 @@ export function MosaicWorkspace({
               const pk = `strategyDetail:${sid}`;
               onOpenStrategyDetail(sid);
 
-              ensureGroupVisibleRightOfRoot("strategyDetail");
+              placePanelInLayout(
+                pk,
+                "strategyDetail",
+                "strategies" // ancre = panel appelant
+              );
+
               activatePanel("strategyDetail", pk);
             }}
           >
@@ -338,7 +383,12 @@ export function MosaicWorkspace({
               const pk = `strategyDetail:${sid}`;
               onOpenStrategyDetail(sid);
 
-              ensureGroupVisibleRightOfRoot("strategyDetail");
+              placePanelInLayout(
+                pk,
+                "strategyDetail",
+                "strategies" // ancre = panel appelant
+              );
+
               activatePanel("strategyDetail", pk);
             }}
           >
@@ -354,20 +404,115 @@ export function MosaicWorkspace({
 
     if (panelKey.startsWith("strategyDetail:")) {
       const sid = panelKey.split(":")[1];
+    
       return (
         <div>
           {renderAttachDetach(panelKey, tileContextIsGrouped)}
-
+    
           <StrategyDetailPanel
             sid={sid}
-            onOpenChart={(nb) => onOpenChart(sid, nb)}
-            onOpenRun={(nb) => onOpenRun(sid, nb)}
-            onOpenNodered={() => onOpenNodered(sid)}
+            onOpenChart={(nb) => {
+              const newKey = `chart:${sid}:${nb}`;
+    
+              const placement = placeNewPanel({
+                anchorPanelKey: panelKey,
+                newPanel: { panelKey: newKey, kind: "chart" },
+                tiles,
+              });
+    
+              setGraph((g) =>
+                openPanel(g, {
+                  panelKey: newKey,
+                  kind: "chart",
+                  strategyId: sid,
+                  instanceKey: String(nb),
+                })
+              );
+    
+              if (
+                placement.kind === "split" &&
+                layoutRef.current
+              ) {
+                layoutRef.current = insertPanelRelativeToAnchor(
+                  layoutRef.current,
+                  placement.anchorPanelKey,
+                  placement.direction,
+                  newKey
+                );
+              }
+    
+              forceRender((x) => x + 1);
+            }}
+    
+            onOpenRun={(nb) => {
+              const newKey = `run:${sid}:${nb}`;
+    
+              const placement = placeNewPanel({
+                anchorPanelKey: panelKey,
+                newPanel: { panelKey: newKey, kind: "run" },
+                tiles,
+              });
+    
+              setGraph((g) =>
+                openPanel(g, {
+                  panelKey: newKey,
+                  kind: "run",
+                  strategyId: sid,
+                  instanceKey: String(nb),
+                })
+              );
+    
+              if (
+                placement.kind === "split" &&
+                layoutRef.current
+              ) {
+                layoutRef.current = insertPanelRelativeToAnchor(
+                  layoutRef.current,
+                  placement.anchorPanelKey,
+                  placement.direction,
+                  newKey
+                );
+              }
+    
+              forceRender((x) => x + 1);
+            }}
+    
+            onOpenNodered={() => {
+              const newKey = `nodered:${sid}`;
+    
+              const placement = placeNewPanel({
+                anchorPanelKey: panelKey,
+                newPanel: { panelKey: newKey, kind: "nodered" },
+                tiles,
+              });
+    
+              setGraph((g) =>
+                openPanel(g, {
+                  panelKey: newKey,
+                  kind: "nodered",
+                  strategyId: sid,
+                })
+              );
+    
+              if (
+                placement.kind === "split" &&
+                layoutRef.current
+              ) {
+                layoutRef.current = insertPanelRelativeToAnchor(
+                  layoutRef.current,
+                  placement.anchorPanelKey,
+                  placement.direction,
+                  newKey
+                );
+              }
+    
+              forceRender((x) => x + 1);
+            }}
           />
         </div>
       );
     }
-
+    
     /* =========================
      * Chart
      * ========================= */
