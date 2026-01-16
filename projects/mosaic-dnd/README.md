@@ -87,3 +87,41 @@ be integrated into a larger SaaS application.
 
 Clarity > features.
 Correctness > speed.
+
+
+
+🧠 Concepts (définition stricte)
+1️⃣ Tab
+
+    représente un contenu métier
+
+    est déplaçable
+
+    est unique dans le workspace
+
+2️⃣ Container
+
+    contient une pile LIFO de tabs
+
+    a toujours un tab actif
+
+    peut avoir 1 à N tabs
+
+    ne disparaît que s’il est vide
+
+3️⃣ Workspace
+
+    ensemble des containers
+
+    garantit :
+
+        unicité des tabs
+
+        cohérence des piles
+
+        opérations atomiques
+
+
+______________________________________________________________________________
+
+
