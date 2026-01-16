@@ -26,7 +26,7 @@ export default function App() {
 
   return (
     <div style={{ padding: 16 }}>
-      <h1>Mosaic DnD — C1</h1>
+      <h1>Mosaic DnD</h1>
 
       <WorkspaceView
         workspace={workspace}

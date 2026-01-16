@@ -1,23 +1,37 @@
+import { useState, type DragEvent } from "react";
 import type { Workspace } from "../model/workspace";
+import { closeTab } from "../model/workspace";
 import { handleTabDrop } from "../model/dnd";
 import { TabView } from "./TabView";
-import React from "react";
 
+/**
+ * Props du WorkspaceView
+ * - workspace : état métier courant
+ * - onChange : callback unique pour appliquer une transition métier
+ */
 type Props = {
   workspace: Workspace;
   onChange: (ws: Workspace) => void;
 };
 
+/**
+ * MIME type utilisé pour le Drag & Drop des tabs
+ * (évite les collisions avec d'autres DnD éventuels)
+ */
 const MIME = "application/x-mosaic-tab";
 
+/**
+ * Payload transporté pendant le drag d'un tab
+ */
 type DragPayload = {
   tabId: string;
   sourceContainerId: string;
 };
 
-function readDragPayload(
-  e: React.DragEvent
-): DragPayload | null {
+/**
+ * Helper pour lire proprement le payload DnD
+ */
+function readDragPayload(e: DragEvent): DragPayload | null {
   const raw = e.dataTransfer.getData(MIME);
   if (!raw) return null;
   try {
@@ -28,10 +42,49 @@ function readDragPayload(
 }
 
 export function WorkspaceView({ workspace, onChange }: Props) {
+  // ✅ Hooks : uniquement ici, au niveau racine du composant
+  const [dragOverContainer, setDragOverContainer] =
+    useState<string | null>(null);
+
   const containers = Object.values(workspace.containers);
 
   return (
-    <div style={{ display: "flex", gap: 16 }}>
+    /**
+     * ===============================
+     * ZONE "OUTSIDE" GLOBALE
+     * ===============================
+     *
+     * - Drop ici = intention "DETACH"
+     * - Le modèle décidera :
+     * - isolation (nouveau container)
+     * - ou fermeture (fallback)
+     */
+    <div
+      style={{
+        display: "flex",
+        gap: 16,
+        padding: 16,
+        minHeight: 400,
+        background: "#f0f0f0",
+      }}
+      onDragOver={(e) => {
+        if (e.dataTransfer.types.includes(MIME)) {
+          e.preventDefault(); // autorise le drop
+          e.dataTransfer.dropEffect = "move";
+        }
+      }}
+      onDrop={(e) => {
+        const payload = readDragPayload(e);
+        if (!payload) return;
+
+        // 👉 MOVE TAB → OUTSIDE = DETACH
+        onChange(
+          handleTabDrop(workspace, payload.tabId, {
+            type: "outside",
+          })
+        );
+      }}
+    >
       {containers.map((container) => (
         <div
           key={container.id}
@@ -43,26 +96,34 @@ export function WorkspaceView({ workspace, onChange }: Props) {
           }}
         >
           {/* ===============================
-              Header du container (DROP ZONE)
-             =============================== */}
+            HEADER DU CONTAINER (DROP ZONE)
+            ===============================
+            Drop ici = intention "GROUPER"
+          */}
           <div
             style={{
               padding: 6,
               border: "1px dashed #bbb",
               marginBottom: 8,
-              background: "#fff",
+              background:
+                dragOverContainer === container.id ? "#e6f2ff" : "#fff",
             }}
             onDragOver={(e) => {
               if (e.dataTransfer.types.includes(MIME)) {
-                e.preventDefault(); // autorise le drop
+                e.preventDefault();
                 e.dataTransfer.dropEffect = "move";
               }
             }}
+            onDragEnter={() => setDragOverContainer(container.id)}
             onDrop={(e) => {
+              // ⚠️ Empêche le drop "outside" global
+              e.stopPropagation();
+              setDragOverContainer(null);
+
               const payload = readDragPayload(e);
               if (!payload) return;
 
-              // optionnel : ignorer drop sur même container
+              // Optionnel : ignorer le drop sur le même container
               if (payload.sourceContainerId === container.id) {
                 return;
               }
@@ -75,14 +136,12 @@ export function WorkspaceView({ workspace, onChange }: Props) {
               );
             }}
           >
-            <h3 style={{ margin: 0 }}>
-              Container {container.id}
-            </h3>
+            <h3 style={{ margin: 0 }}>Container {container.id}</h3>
           </div>
 
           {/* ===============================
-              Tabs
-             =============================== */}
+            LISTE DES TABS
+            =============================== */}
           {container.tabs.map((tab) => (
             <div
               key={tab.id}
@@ -93,51 +152,17 @@ export function WorkspaceView({ workspace, onChange }: Props) {
                 background: "#fff",
               }}
             >
-              {/* C2.1 — Tab draggable */}
+              {/* -------------------------------
+                TAB (DRAG + CLOSE)
+                -------------------------------
+                - Drag = déplacement
+                - ✕ = fermeture explicite
+              */}
               <TabView
                 tab={tab}
                 containerId={container.id}
+                onClose={(tabId) => onChange(closeTab(workspace, tabId))}
               />
-
-              {/* Boutons C1 (fallback / debug) */}
-              <div style={{ marginTop: 6 }}>
-                {containers
-                  .filter((c) => c.id !== container.id)
-                  .map((target) => (
-                    <button
-                      key={target.id}
-                      onClick={() =>
-                        onChange(
-                          handleTabDrop(
-                            workspace,
-                            tab.id,
-                            {
-                              type: "header",
-                              containerId: target.id,
-                            }
-                          )
-                        )
-                      }
-                      style={{ marginRight: 6 }}
-                    >
-                      → header {target.id}
-                    </button>
-                  ))}
-
-                <button
-                  onClick={() =>
-                    onChange(
-                      handleTabDrop(
-                        workspace,
-                        tab.id,
-                        { type: "outside" }
-                      )
-                    )
-                  }
-                >
-                  → outside
-                </button>
-              </div>
             </div>
           ))}
         </div>
