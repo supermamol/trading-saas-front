@@ -1,3 +1,4 @@
+import { TabView } from "./TabView";
 import type { Workspace } from "../model/workspace";
 import { handleTabDrop } from "../model/dnd";
 
@@ -11,33 +12,23 @@ export function WorkspaceView({ workspace, onChange }: Props) {
 
   return (
     <div style={{ display: "flex", gap: 16 }}>
-      {containers.map(container => (
+      {containers.map((container) => (
         <div
           key={container.id}
-          style={{
-            border: "1px solid #ccc",
-            padding: 8,
-            minWidth: 200,
-          }}
+          style={{ border: "1px solid #ccc", padding: 8, minWidth: 220 }}
         >
           <h3>Container {container.id}</h3>
 
-          {container.tabs.map(tab => (
-            <div
-              key={tab.id}
-              style={{
-                border: "1px solid #999",
-                padding: 4,
-                marginBottom: 6,
-              }}
-            >
-              <strong>Tab {tab.id}</strong>
+          {container.tabs.map((tab) => (
+            <div key={tab.id} style={{ border: "1px solid #ddd", padding: 6, marginBottom: 8 }}>
+              {/* ✅ C2.1: Tab draggable */}
+              <TabView tab={tab} containerId={container.id} />
 
-              <div style={{ marginTop: 4 }}>
-                {/* Simule tab → entête */}
+              {/* Boutons C1 (tu peux les garder pour l’instant) */}
+              <div style={{ marginTop: 6 }}>
                 {containers
-                  .filter(c => c.id !== container.id)
-                  .map(target => (
+                  .filter((c) => c.id !== container.id)
+                  .map((target) => (
                     <button
                       key={target.id}
                       onClick={() =>
@@ -48,20 +39,15 @@ export function WorkspaceView({ workspace, onChange }: Props) {
                           })
                         )
                       }
-                      style={{ marginRight: 4 }}
+                      style={{ marginRight: 6 }}
                     >
                       → header {target.id}
                     </button>
                   ))}
 
-                {/* Simule tab → hors entête */}
                 <button
                   onClick={() =>
-                    onChange(
-                      handleTabDrop(workspace, tab.id, {
-                        type: "outside",
-                      })
-                    )
+                    onChange(handleTabDrop(workspace, tab.id, { type: "outside" }))
                   }
                 >
                   → outside
