@@ -796,6 +796,15 @@ Je te confirme point par point :
 | `Workspace.semantic.spec.tsx` | 🟡 `it.skip` | structure future       |
 
 
+| Action      | Test UI ? | Pourquoi                    |
+| ----------- | --------- | --------------------------- |
+| close       | ✅         | geste local, visible        |
+| detach      | ✅         | geste local, visible        |
+| isolate     | ✅         | geste spatial, intentionnel |
+| **rattach** | ❌         | orchestration métier        |
+
+
+
         intégrer Mosaic
         ✅ OUI, ensuite seulement
 
