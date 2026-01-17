@@ -796,8 +796,8 @@ Je te confirme point par point :
 | `Workspace.semantic.spec.tsx` | 🟡 `it.skip` | structure future       |
 
 
-| Action      | Test UI ? | Pourquoi                    |
-| ----------- | --------- | --------------------------- |
+| Action      | Test UI ?  | Pourquoi                    |
+| ----------- | ---------  | --------------------------- |
 | close       | ✅         | geste local, visible        |
 | detach      | ✅         | geste local, visible        |
 | isolate     | ✅         | geste spatial, intentionnel |
@@ -807,6 +807,14 @@ Je te confirme point par point :
 
         intégrer Mosaic
         ✅ OUI, ensuite seulement
+
+| Event Mosaic       | Sens            | Action             |
+| ------------------ | --------------- | ------------------ |
+| `onChange(layout)` | géométrie       | stocker layout     |
+| `onRemove(nodeId)` | fermer un panel | `close(container)` |
+| drag container     | réorganiser     | Mosaic only        |
+| detach             | ❌              | **hors Mosaic**    |
+
 
         adapter isolate
         ✅ OUI, à ce moment-là seulement
