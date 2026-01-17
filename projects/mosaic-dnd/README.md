@@ -723,3 +723,81 @@ Tu peux l’utiliser comme :
         la validité globale du workspace
 
 
+
+_________________________________________________________________________
+
+✅ État actuel du projet (au moment du freeze)
+Ce qui est solide et validé
+
+    ✅ Modèle métier (Workspace / Tabs / Containers)
+
+        openPanel, detachPanel, DnD header → OK
+
+        Règles métiers testées et stables
+
+    ✅ Detach
+
+        Sort définitivement du workspace
+
+        Supporte plusieurs tabs détachés
+
+        Retour possible via openPanel
+
+    ✅ Tests modèle : verts
+
+    ✅ POC UI fonctionnel
+
+        Bouton detach
+
+        DnD header
+
+        Debug View exploitable
+
+    ✅ Tag déjà posé : mosaic-dnd-v0.1
+    👉 c’est une borne saine
+
+Ce qui est volontairement gelé
+
+    ❄️ isolate
+
+        Trop lié à Mosaic
+
+        Les tests UI forcent une sémantique qui n’existe pas encore visuellement
+
+    ❄️ DnD outside → isolate
+
+        À retirer / ignorer pour l’instant
+
+__________________________________________________________________
+
+✅ Ton plan proposé : VALIDÉ
+
+Je te confirme point par point :
+
+        mettre des boutons "detach" et "isolate" sur les Tabs
+        ✅ OUI (UI explicite > DnD implicite)
+
+        implémenter les 2 fonctions derrière ces boutons
+        ✅ OUI (déjà très bien séparées)
+
+        retirer le DnD outside pour réaliser isolate
+        ✅ OUI (excellent choix)
+
+        faire des tests vitest avec ces boutons
+        ✅ OUI, tests d’intention, pas de layout
+
+        intégrer Mosaic
+        ✅ OUI, ensuite seulement
+
+        adapter isolate
+        ✅ OUI, à ce moment-là seulement
+
+        adapter detach
+        🟰 peu de changements, surtout pour le “retour”
+
+        implémenter "retour" sur un Tab détaché
+        ✅ OUI (via openPanel)
+
+____________________________________________________________________
+
+
