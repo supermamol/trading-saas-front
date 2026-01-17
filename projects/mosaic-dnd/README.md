@@ -786,6 +786,16 @@ Je te confirme point par point :
         faire des tests vitest avec ces boutons
         ✅ OUI, tests d’intention, pas de layout
 
+
+        | Fichier                       | Action       | Raison                 |
+| ----------------------------- | ------------ | ---------------------- |
+| `Workspace.detach.spec.tsx`   | ✅ actif      | contrat UI stable      |
+| `Workspace.close.spec.tsx`    | ✅ partiel    | dernier tab hors scope |
+| `Workspace.isolate.spec.tsx`  | 🟡 `it.skip` | dépend Mosaic          |
+| `Workspace.render.spec.tsx`   | 🟡 `it.skip` | layout                 |
+| `Workspace.semantic.spec.tsx` | 🟡 `it.skip` | structure future       |
+
+
         intégrer Mosaic
         ✅ OUI, ensuite seulement
 
