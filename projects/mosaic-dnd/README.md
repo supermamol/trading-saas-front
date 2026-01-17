@@ -801,3 +801,81 @@ Je te confirme point par point :
 ____________________________________________________________________
 
 
+🗺️ Plan post‑freeze (ordre important)
+Phase 1 — Clarification UI (sans Mosaic)
+
+Objectif : figer les intentions UI.
+
+Bouton Detach sur chaque Tab
+
+Bouton Isolate sur chaque Tab (simulation)
+
+Supprimer totalement :
+
+    DnD outside → isolate
+
+    Tests UI simples :
+
+        click Detach → tab sort du workspace
+
+        click Isolate → tab reste dans le workspace
+
+👉 Isolate = appel d’une intention, pas encore un layout réel.
+Phase 2 — Introduction de Mosaic (layout only)
+
+Objectif : brancher Mosaic sans logique métier.
+
+Intégrer Mosaic comme projection du workspace
+
+Aucun changement dans :
+
+    workspace.ts
+
+    workspace.panels.ts
+
+    Mapper :
+
+        Container → MosaicNode
+
+        Tab → contenu
+
+👉 Mosaic ne décide rien, il affiche.
+Phase 3 — Dock / Split Mosaic
+
+Objectif : donner un sens réel à isolate.
+
+Définir zones de dock Mosaic (N / S / E / W)
+
+Isolate déclenché uniquement par :
+
+    DnD vers une zone de split du container source
+
+    Cas particulier :
+
+        container avec 1 tab → split neutre (pas visible)
+
+👉 C’est le layout qui décide si quelque chose est visible.
+Phase 4 — Adapter isolate
+
+isolate(tab) reçoit une intention de split
+
+Le modèle :
+
+    crée un container
+
+    Mosaic :
+
+        décide s’il l’affiche ou non
+
+👉 Séparation nette :
+modèle = vérité, layout = projection.
+Phase 5 — Retour d’un tab détaché
+
+UI pour afficher workspace.detached[]
+
+Bouton Retour
+
+Retour = openPanel(detached.kind, detached.payload)
+
+Aucun souvenir de position (assumé)
+

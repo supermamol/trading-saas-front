@@ -3,6 +3,7 @@ import type { Workspace } from "../model/workspace";
 import { closeTab } from "../model/workspace";
 import { handleTabDrop } from "../model/dnd";
 import { TabView } from "./TabView";
+import { detachPanel } from "../model/workspace.panels";
 
 /**
  * Props du WorkspaceView
@@ -174,6 +175,10 @@ export function WorkspaceView({ workspace, onChange }: Props) {
                 onClose={(tabId) =>
                   onChange(closeTab(workspace, tabId))
                 }
+                onDetach={(tab) => {
+                  const { workspace: next } = detachPanel(workspace, tab);
+                  onChange(next);
+                }}
               />
             </div>
           ))}
