@@ -2,7 +2,7 @@ import { useState } from "react";
 import type { Workspace } from "./model/workspace";
 import type { Container } from "./model/container";
 import type { Tab } from "./model/tab";
-import { WorkspaceView } from "./ui/WorkspaceView";
+import { WorkspaceMosaicView } from "./ui/WorkspaceMosaicView";
 
 function initialWorkspace(): Workspace {
   const A: Tab = { id: "A", kind: "test" };
@@ -25,13 +25,18 @@ export default function App() {
     useState<Workspace>(initialWorkspace);
 
   return (
-    <div style={{ padding: 16 }}>
-      <h1>Mosaic DnD</h1>
-
-      <WorkspaceView
+    <div
+      style={{
+        height: "calc(100vh - 80px)",
+        background: "#f3f4f6",
+        padding: 12,
+      }}
+    >
+      <WorkspaceMosaicView
         workspace={workspace}
-        onChange={setWorkspace}
+        onWorkspaceChange={setWorkspace}
       />
     </div>
+
   );
 }

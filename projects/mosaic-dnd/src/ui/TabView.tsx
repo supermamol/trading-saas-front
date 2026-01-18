@@ -19,8 +19,10 @@ export function TabView({
         display: "flex",
         alignItems: "center",
         gap: 6,
-        border: "1px solid #ccc",
         padding: "4px 6px",
+        background: "#f9fafb",
+        borderRadius: 4,
+        fontSize: 13,
       }}
     >
       {/* ✅ ZONE DRAG UNIQUEMENT */}
@@ -40,14 +42,32 @@ export function TabView({
           flex: 1,
           cursor: "grab",
           userSelect: "none",
+          color: "#111827",
         }}
       >
         Tab {tab.id}
       </div>
 
       {/* ACTIONS */}
-      <button aria-label="Detach tab" onClick={() => onDetach(tab)}>detach</button>
-      <button aria-label="Close tab" onClick={() => onClose(tab.id)}>×</button>
+      <button
+        aria-label="Detach tab"
+        style={{
+          fontSize: 11,
+          opacity: 0.6,
+        }}
+      >
+        detach
+      </button>
+
+      <button
+        aria-label="Close tab"
+        style={{
+          fontSize: 11,
+          opacity: 0.6,
+        }}
+      >
+        ×
+      </button>
     </div>
   );
 }
