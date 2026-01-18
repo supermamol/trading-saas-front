@@ -4,7 +4,6 @@ html, body, #root {
 }
 
 .container-panel {
-  height: 100%;
   display: flex;
   flex-direction: column;
   box-sizing: border-box;
@@ -17,4 +16,21 @@ html, body, #root {
 
 .mosaic {
   gap: 8px;
+}
+
+/* Toolbar visible uniquement comme zone de drag (fine) */
+.mosaic-window-toolbar {
+  height: 16px;
+  min-height: 16px;
+}
+
+/* Cache les boutons (Expand/Close/etc.) */
+.mosaic-window-controls {
+  display: none !important;
+}
+
+/* Optionnel : rendre la zone de drag “invisible” */
+.mosaic-window-toolbar {
+  background: transparent !important;
+  border: none !important;
 }

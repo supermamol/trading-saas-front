@@ -1,8 +1,11 @@
+import "react-mosaic-component/react-mosaic-component.css";
+
 import { useState } from "react";
 import type { Workspace } from "./model/workspace";
 import type { Container } from "./model/container";
 import type { Tab } from "./model/tab";
 import { WorkspaceMosaicView } from "./ui/WorkspaceMosaicView";
+import { WorkspaceDnDProvider } from "./ui/WorkspaceDnDProvider";
 
 function initialWorkspace(): Workspace {
   const A: Tab = { id: "A", kind: "test" };
@@ -32,11 +35,17 @@ export default function App() {
         padding: 12,
       }}
     >
-      <WorkspaceMosaicView
+      <WorkspaceDnDProvider
         workspace={workspace}
         onWorkspaceChange={setWorkspace}
-      />
-    </div>
+      >
 
+        <WorkspaceMosaicView
+          workspace={workspace}
+          onWorkspaceChange={setWorkspace}
+        />
+
+      </WorkspaceDnDProvider>
+    </div>
   );
 }
