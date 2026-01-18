@@ -1,8 +1,8 @@
 import { useState, useEffect } from "react";
 import {
-  Mosaic,
-  MosaicWindow,
-  type MosaicNode,
+    Mosaic,
+    MosaicWindow,
+    type MosaicNode,
 } from "react-mosaic-component";
 
 import type { Workspace } from "../model/workspace";
@@ -21,17 +21,17 @@ type MosaicLayout = MosaicNode<string>;
  * ====================================================== */
 
 function buildInitialLayout(containerIds: string[]): MosaicLayout | null {
-  if (containerIds.length === 0) return null;
-  if (containerIds.length === 1) return containerIds[0];
+    if (containerIds.length === 0) return null;
+    if (containerIds.length === 1) return containerIds[0];
 
-  return containerIds.slice(1).reduce<MosaicLayout>(
-    (acc, id) => ({
-      direction: "row",
-      first: acc,
-      second: id,
-    }),
-    containerIds[0]
-  );
+    return containerIds.slice(1).reduce<MosaicLayout>(
+        (acc, id) => ({
+            direction: "row",
+            first: acc,
+            second: id,
+        }),
+        containerIds[0]
+    );
 }
 
 /* ======================================================
@@ -39,89 +39,106 @@ function buildInitialLayout(containerIds: string[]): MosaicLayout | null {
  * ====================================================== */
 
 export function WorkspaceMosaicView({
-  workspace,
-  onWorkspaceChange,
+    workspace,
+    onWorkspaceChange,
 }: {
-  workspace: Workspace;
-  onWorkspaceChange: (updater: (ws: Workspace) => Workspace) => void;
+    workspace: Workspace;
+    onWorkspaceChange: (updater: (ws: Workspace) => Workspace) => void;
 }) {
-  const containerIds = Object.keys(workspace.containers).sort();
+    const containerIds = Object.keys(workspace.containers).sort();
 
-  /**
-   * UI state pur : layout Mosaic
-   * ⚠️ dérivé du workspace (Phase 0)
-   */
-  const [layout, setLayout] = useState<MosaicLayout | null>(() =>
-    buildInitialLayout(containerIds)
-  );
+    /**
+     * UI state pur : layout Mosaic
+     * ⚠️ dérivé du workspace (Phase 0)
+     */
+    const [layout, setLayout] = useState<MosaicLayout | null>(() =>
+        buildInitialLayout(containerIds)
+    );
 
-  /**
-   * 🔁 Phase 0 :
-   * dès que la structure métier change,
-   * on reconstruit le layout
-   */
-  useEffect(() => {
-    setLayout(buildInitialLayout(containerIds));
-  }, [containerIds.join("|")]);
+    /**
+     * 🔁 Phase 0 :
+     * dès que la structure métier change,
+     * on reconstruit le layout
+     */
+    useEffect(() => {
+        setLayout(buildInitialLayout(containerIds));
+    }, [containerIds.join("|")]);
 
-  /**
-   * onChange(layout)
-   * → géométrie UNIQUEMENT
-   */
-  const handleLayoutChange = (nextLayout: MosaicLayout | null) => {
-    setLayout(nextLayout);
-  };
+    /**
+     * onChange(layout)
+     * → géométrie UNIQUEMENT
+     */
+    const handleLayoutChange = (nextLayout: MosaicLayout | null) => {
+        setLayout(nextLayout);
+    };
 
-  /**
-   * onRemove(containerId)
-   * → fermeture visuelle
-   * → PAS un detach
-   */
-  const handleRemove = (containerId: string) => {
-    onWorkspaceChange((ws) => ({
-      ...ws,
-      containers: Object.fromEntries(
-        Object.entries(ws.containers).filter(
-          ([id]) => id !== containerId
-        )
-      ),
-    }));
-  };
+    /**
+     * onRemove(containerId)
+     * → fermeture visuelle
+     * → PAS un detach
+     */
+    const handleRemove = (containerId: string) => {
+        onWorkspaceChange((ws) => ({
+            ...ws,
+            containers: Object.fromEntries(
+                Object.entries(ws.containers).filter(
+                    ([id]) => id !== containerId
+                )
+            ),
+        }));
+    };
 
-  /**
-   * Rendu d’un container
-   */
-  const renderTile = (containerId: string, path: any) => {
-    const container: Container | undefined =
-      workspace.containers[containerId];
+    /**
+     * Rendu d’un container
+     */
+    const renderTile = (containerId: string, path: any) => {
+        const container: Container | undefined =
+            workspace.containers[containerId];
 
-    if (!container) {
-      return (
-        <MosaicWindow<string> path={path} title={null}>
-          <div />
-        </MosaicWindow>
-      );
-    }
+        if (!container) {
+            return (
+                <MosaicWindow<string> path={path} title={null}>
+                    <div />
+                </MosaicWindow>
+            );
+        }
+
+        return (
+            <MosaicWindow<string>
+                path={path}
+                title={`Container ${containerId}`}
+                onRemove={() => handleRemove(containerId)}
+                renderToolbar={(props) => (
+                    <div
+                        className="my-toolbar"
+                        style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between", // 👈 CLÉ
+                            width: "100%",
+                            padding: "0 6px",
+                        }}
+                    >                        <span>{props.title}</span>
+                        {props.onRemove && (
+                            <button onClick={props.onRemove}>×</button>
+                        )}
+                    </div>
+                )}
+            >
+                <ContainerView
+                    container={container}
+                    onWorkspaceChange={onWorkspaceChange}
+                />
+            </MosaicWindow>
+        );
+    };
 
     return (
-      <MosaicWindow<string>
-        path={path}
-        title={`Container ${containerId}`}
-        onRemove={() => handleRemove(containerId)}
-      >
-        <ContainerView
-          container={container}
-          onWorkspaceChange={onWorkspaceChange}
+        <Mosaic<string>
+            value={layout}
+            onChange={handleLayoutChange}
+            renderTile={renderTile}
         />
-      </MosaicWindow>
     );
-  };
-
-  return (
-    <Mosaic<string>
-      value={layout}
-      onChange={handleLayoutChange}
-      renderTile={renderTile}
-    />
-  );
 }
+
