@@ -47,8 +47,8 @@ export function TabView({
       </div>
 
       {/* actions */}
-      <button onClick={() => onDetach(tab)}>detach</button>
-      <button onClick={() => onClose(tab.id)}>×</button>
+      <button aria-label="Detach tab" onClick={() => onDetach(tab)}>detach</button>
+      <button aria-label="Close tab" onClick={() => onClose(tab.id)}>×</button>
     </div>
   );
 }
