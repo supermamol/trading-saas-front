@@ -127,6 +127,7 @@ export function WorkspaceMosaicView({
             >
                 <ContainerView
                     container={container}
+                    workspace={workspace}
                     onWorkspaceChange={onWorkspaceChange}
                 />
             </MosaicWindow>

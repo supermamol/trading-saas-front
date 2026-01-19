@@ -2,6 +2,7 @@ import { useDraggable } from "@dnd-kit/core";
 import type { Tab } from "../model/tab";
 import type { ContainerId } from "../model/ids";
 
+
 export function TabView({
   tab,
   containerId,
