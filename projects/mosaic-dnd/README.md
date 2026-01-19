@@ -906,3 +906,341 @@ Retour = openPanel(detached.kind, detached.payload)
 
 Aucun souvenir de position (assumé)
 
+________________________________________________________________
+
+DETACH / RATTACH
+""""""""""""""""
+
+Mode des fenêtres détachées
+
+    2 modes UI uniquement :
+
+        partagé (par défaut, Mosaic standard)
+
+        full screen
+
+    Le passage de l’un à l’autre :
+
+        ❌ ne modifie PAS le workspace métier
+
+        ❌ ne touche PAS Detached[]
+
+        ✅ est purement UI
+
+🔹 Bouton X (toujours visible)
+
+    Visible :
+
+        en mode partagé
+
+        en mode full screen
+
+    Une seule sémantique :
+
+    X = RATTACH
+
+Donc :
+
+    pas de “Close destructif”
+
+    pas de bouton “Rattach” séparé
+
+    fermer la fenêtre = rattacher le tab
+
+🔁 Cycle de vie final d’un tab (figé)
+Detach
+
+    Tab retiré de son container
+
+    Tab ajouté à Detached[]
+
+    Fenêtre créée (mode partagé)
+
+Full screen
+
+    Toggle UI uniquement
+
+X (Close)
+
+    Tab retiré de Detached[]
+
+    Tab réinséré via la règle globale existante :
+
+        onglet sur 1ʳᵉ occurrence du type
+
+        sinon zone liée au type
+
+    Fenêtre supprimée
+
+👉 Aucune exception, aucun cas spécial.
+🧠 Conséquence clé (très importante)
+
+    ❌ Il n’existe plus de notion de :
+
+        “fermer un tab détaché”
+
+        “perdre un tab”
+
+    ✅ Un tab détaché est toujours récupérable
+
+    ✅ Detached[] est un état transitoire, jamais terminal
+
+C’est un très bon choix produit.
+🔧 Ce que ça implique pour le code (sans encore coder)
+
+À partir de maintenant, il faudra :
+
+    Detached[]
+
+        contenir au minimum :
+
+            tab
+
+            éventuellement originContainerId (si utile plus tard)
+
+        ❌ aucune info de layout / fullscreen
+
+    Une fonction métier claire
+
+        detachTab(workspace, tab)
+
+        rattachTab(workspace, tab)
+        → qui appelle la logique standard d’ajout de panel
+
+    La fenêtre détachée
+
+        est une projection UI
+
+        disparaît dès que Detached[] n’inclut plus le tab
+
+_____________________________________________________________________
+
+SYNTHESE APPLICATIVE
+""""""""""""""""""""
+
+┌──────────────────────────────┐
+│           UI (React)         │
+│  Mosaic / Tabs / Boutons / X │
+└──────────────▲───────────────┘
+               │ intentions UI
+┌──────────────┴───────────────┐
+│    Orchestration UI → Métier │
+│  (WorkspaceDnDProvider, UI)  │
+└──────────────▲───────────────┘
+               │ transitions atomiques
+┌──────────────┴───────────────┐
+│       Modèle Métier          │
+│  Workspace / Container / Tab │
+└──────────────▲───────────────┘
+               │ invariants
+┌──────────────┴───────────────┐
+│        Tests & Debug         │
+│  Vitest + Debug Views        │
+└──────────────────────────────┘
+
+🧠 Vue d’ensemble — principe global
+
+sequenceDiagram
+    participant U as Utilisateur
+    participant UI as UI (TabView / ContainerView)
+    participant O as Orchestration UI
+    participant M as Modèle Métier
+    participant S as State React (workspace)
+
+    U->>UI: Action utilisateur (click / drag)
+    UI->>O: Intention (close / detach / drop)
+    O->>M: Appel fonction métier pure
+    M-->>O: Nouveau Workspace
+    O->>S: setWorkspace(next)
+    S-->>UI: Re-render
+
+👉 Message clé :
+
+    L’UI n’envoie jamais un “résultat”, seulement une intention.
+
+1️⃣ Séquence — Close tab (tab rattaché)
+🎯 Cas : clic sur ✕ dans un container Mosaic
+
+sequenceDiagram
+    participant U as Utilisateur
+    participant Tab as TabView
+    participant C as ContainerView
+    participant M as workspace.ts
+    participant R as React State
+
+    U->>Tab: Click ✕
+    Tab->>C: onClose(tabId)
+    C->>M: closeTab(workspace, tabId)
+
+    alt container.tabs.length > 1
+        M-->>C: Workspace (tab retiré)
+    else container.tabs.length == 1
+        M-->>C: Workspace (container supprimé)
+    end
+
+    C->>R: setWorkspace(next)
+    R-->>Tab: Re-render
+
+✅ Décision métier centrale
+✅ UI totalement agnostique du cas
+2️⃣ Séquence — Detach via bouton (flux officiel)
+🎯 Cas : clic sur Detach (Tab → fenêtre détachée)
+
+sequenceDiagram
+    participant U as Utilisateur
+    participant Tab as TabView
+    participant C as ContainerView
+    participant P as workspace.panels.ts
+    participant M as workspace.ts
+    participant R as React State
+
+    U->>Tab: Click Detach
+    Tab->>C: onDetach(tab)
+    C->>P: detachPanel(workspace, tab)
+
+    P->>M: findContainerByTab
+    alt container.tabs.length > 1
+        P->>M: isolateTab
+        P->>P: supprimer container isolé
+    else container.tabs.length == 1
+        P->>M: closeTab
+    end
+
+    P-->>C: { workspace: next, detached }
+    C->>R: setWorkspace(next)
+
+👉 Point crucial :
+
+    le DetachedPanel sort du workspace
+
+    aucune UI Mosaic n’est impliquée
+
+    Mosaic ne “voit” que le workspace restant
+
+3️⃣ Séquence — Drag & Drop (raccourci expert)
+🎯 Cas : tab déplacé par DnD (dnd-kit)
+
+sequenceDiagram
+    participant U as Utilisateur
+    participant D as dnd-kit
+    participant P as WorkspaceDnDProvider
+    participant DND as model/dnd.ts
+    participant M as workspace.ts
+    participant R as React State
+
+    U->>D: Drag tab
+    D->>P: onDragStart
+    P->>P: setActiveTab (overlay)
+
+    U->>D: Drop
+    D->>P: onDragEnd(active, over)
+
+    alt drop sur container
+        P->>DND: handleTabDrop(header)
+        DND->>M: moveTabToContainer
+    else drop outside
+        P->>DND: handleTabDrop(outside)
+        DND->>M: isolateTab / closeTab
+    end
+
+    M-->>P: Workspace next
+    P->>R: setWorkspace(next)
+
+🟡 Pourquoi legacy contrôlé :
+
+    ce flux ne définit plus le produit
+
+    il n’est qu’un outil de manipulation
+
+4️⃣ Séquence — Rattach (futur, décision A)
+🎯 Cas : clic ✕ sur une fenêtre détachée
+
+sequenceDiagram
+    participant U as Utilisateur
+    participant W as Fenêtre détachée
+    participant P as workspace.panels.ts
+    participant M as workspace.ts
+    participant R as React State
+
+    U->>W: Click ✕ (Rattach)
+    W->>P: openPanel(kind, context)
+    P->>M: pushTab / création container
+    M-->>P: Workspace next
+    P->>R: setWorkspace(next)
+
+👉 Aucune restauration de layout
+👉 Règles identiques à “ouvrir un panel”
+🧾 Synthèse finale (à garder)
+🧠 Règle d’or illustrée
+
+    L’UI déclenche → le modèle décide → l’UI reflète
+
+📌 Où vit chaque décision
+Décision	Fichier
+Close tab	workspace.ts
+Detach / Rattach	workspace.panels.ts
+DnD	model/dnd.ts
+Layout	WorkspaceMosaicView.tsx
+
+
+__________________________________________________________________
+
+
+Isolate par DnD vers zone de split :
+
+sequenceDiagram
+    participant U as Utilisateur
+    participant T as TabView
+    participant D as dnd-kit
+    participant P as WorkspaceDnDProvider
+    participant Z as SplitDropZone
+    participant W as workspace.panels.ts
+    participant M as workspace.ts
+    participant R as React State
+    participant MO as Mosaic
+
+    %% Drag start
+    U->>T: Drag Tab
+    T->>D: dragStart
+    D->>P: onDragStart(tabId, sourceContainerId)
+    P->>P: setActiveTab (overlay)
+
+    %% Hover over split zones
+    D->>Z: dragOver(splitZone)
+    Z-->>U: feedback visuel (highlight)
+
+    %% Drop
+    U->>D: Drop sur split zone
+    D->>P: onDragEnd(active, over)
+
+    %% Intention explicite
+    P->>W: detachToSplit(workspace, tabId, splitTarget)
+
+    %% Métier
+    W->>M: findContainerByTab(tabId)
+    alt source.container.tabs.length > 1
+        W->>M: removeTab(source, tabId)
+    else source.container.tabs.length == 1
+        W->>M: closeTab(source)
+    end
+
+    %% Création du nouveau container
+    W->>W: createContainerWithTab(tab)
+    W-->>P: { workspace: nextWorkspace, newContainerId }
+
+    %% Mise à jour état
+    P->>R: setWorkspace(nextWorkspace)
+
+    %% Mise à jour layout Mosaic
+    R-->>MO: re-render
+    MO->>MO: insert container at splitTarget
+
+
+| Effet                | Mot autorisé |
+| -------------------- | ------------ |
+| Changer de container | `move`       |
+| Nouveau pane Mosaic  | `isolate`    |
+| Nouvelle fenêtre OS  | `detach`     |
+
+
+

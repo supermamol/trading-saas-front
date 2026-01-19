@@ -1,11 +1,21 @@
 import "react-mosaic-component/react-mosaic-component.css";
 
 import { useState } from "react";
+import type { MosaicNode } from "react-mosaic-component";
+
 import type { Workspace } from "./model/workspace";
 import type { Container } from "./model/container";
 import type { Tab } from "./model/tab";
-import { WorkspaceMosaicView } from "./ui/WorkspaceMosaicView";
+
+import { WorkspaceMosaicView, buildInitialLayout } from "./ui/WorkspaceMosaicView";
 import { WorkspaceDnDProvider } from "./ui/WorkspaceDnDProvider";
+
+type Layout = MosaicNode<string>;
+
+type AppState = {
+  workspace: Workspace;
+  layout: Layout | null;
+};
 
 function initialWorkspace(): Workspace {
   const A: Tab = { id: "A", kind: "test" };
@@ -24,8 +34,12 @@ function initialWorkspace(): Workspace {
 }
 
 export default function App() {
-  const [workspace, setWorkspace] =
-    useState<Workspace>(initialWorkspace);
+  const [state, setState] = useState<AppState>(() => {
+    const workspace = initialWorkspace();
+    const containerIds = Object.keys(workspace.containers).sort();
+    const layout = buildInitialLayout(containerIds);
+    return { workspace, layout };
+  });
 
   return (
     <div
@@ -35,16 +49,8 @@ export default function App() {
         padding: 12,
       }}
     >
-      <WorkspaceDnDProvider
-        workspace={workspace}
-        onWorkspaceChange={setWorkspace}
-      >
-
-        <WorkspaceMosaicView
-          workspace={workspace}
-          onWorkspaceChange={setWorkspace}
-        />
-
+      <WorkspaceDnDProvider state={state} onStateChange={setState}>
+        <WorkspaceMosaicView state={state} onStateChange={setState} />
       </WorkspaceDnDProvider>
     </div>
   );

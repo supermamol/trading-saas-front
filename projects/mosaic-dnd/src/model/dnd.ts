@@ -6,7 +6,6 @@ import type { ContainerId } from "./ids";
 import {
   moveTabToContainer,
   isolateTab,
-  closeTab,
   findContainerByTab,
 } from "./workspace";
 
@@ -16,11 +15,11 @@ import {
 
 export type DropTarget =
   | {
-      type: "header";
+      type: "container";   // MOVE
       containerId: ContainerId;
     }
   | {
-      type: "outside";
+      type: "split";       // ISOLATE
     };
 
 /* ======================================================
@@ -33,24 +32,27 @@ export type DropTarget =
  * Le DnD exprime une intention,
  * le modèle décide de l’effet réel.
  */
-export function handleTabDrop(
+ export function handleTabDrop(
   workspace: Workspace,
   tabId: TabId,
   target: DropTarget
 ): Workspace {
   const source = findContainerByTab(workspace, tabId);
   if (!source) {
-    throw new Error(`Source container not found for tab ${tabId}`);
+    return workspace; // 🔒 no-op safe
   }
 
   const tab = source.tabs.find(t => t.id === tabId);
   if (!tab) {
-    throw new Error(`Tab ${tabId} not found`);
+    return workspace; // 🔒 no-op safe
   }
 
   switch (target.type) {
     case "header": {
-      // tab -> entête
+      // NO-OP si même container
+      if (source.id === target.containerId) {
+        return workspace;
+      }
       return moveTabToContainer(
         workspace,
         tab,
@@ -59,14 +61,16 @@ export function handleTabDrop(
     }
 
     case "outside": {
-      // tab -> hors entête
-      // le modèle décide : isolation OU fermeture
+      // Isolate (ou no-op selon règles)
       return isolateTab(
         workspace,
         tab,
         generateContainerId()
       );
     }
+
+    default:
+      return workspace; // 🔒 sécurité absolue
   }
 }
 

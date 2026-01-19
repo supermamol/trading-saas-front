@@ -1,4 +1,3 @@
-import { useState, useEffect } from "react";
 import {
     Mosaic,
     MosaicWindow,
@@ -12,19 +11,26 @@ import { ContainerView } from "./ContainerView";
 /* ======================================================
  * Types
  * ====================================================== */
+export type Layout = MosaicNode<string>;
 
-// Phase 0 : 1 container métier = 1 node Mosaic
-type MosaicLayout = MosaicNode<string>;
+export type WorkspaceState = {
+    workspace: Workspace;
+    layout: MosaicNode<string> | null;
+};
+
+type Props = {
+    state: WorkspaceState;
+    onStateChange: (updater: (s: WorkspaceState) => WorkspaceState) => void;
+};
 
 /* ======================================================
- * Utils — layout minimal
+ * Utils
  * ====================================================== */
-
-function buildInitialLayout(containerIds: string[]): MosaicLayout | null {
+export function buildInitialLayout(containerIds: string[]): Layout | null {
     if (containerIds.length === 0) return null;
     if (containerIds.length === 1) return containerIds[0];
 
-    return containerIds.slice(1).reduce<MosaicLayout>(
+    return containerIds.slice(1).reduce<Layout>(
         (acc, id) => ({
             direction: "row",
             first: acc,
@@ -34,62 +40,67 @@ function buildInitialLayout(containerIds: string[]): MosaicLayout | null {
     );
 }
 
+function pruneLayout(
+    node: MosaicNode<string> | null,
+    validIds: Set<string>
+): MosaicNode<string> | null {
+    if (!node) return null;
+
+    if (typeof node === "string") {
+        return validIds.has(node) ? node : null;
+    }
+
+    const first = pruneLayout(node.first, validIds);
+    const second = pruneLayout(node.second, validIds);
+
+    if (!first && !second) return null;
+    if (!first) return second;
+    if (!second) return first;
+
+    return { ...node, first, second };
+}
+
 /* ======================================================
  * Component
  * ====================================================== */
-
 export function WorkspaceMosaicView({
-    workspace,
-    onWorkspaceChange,
-}: {
-    workspace: Workspace;
-    onWorkspaceChange: (updater: (ws: Workspace) => Workspace) => void;
-}) {
-    const containerIds = Object.keys(workspace.containers).sort();
+    state,
+    onStateChange,
+}: Props) {
+    const { workspace, layout } = state;
 
     /**
-     * UI state pur : layout Mosaic
-     * ⚠️ dérivé du workspace (Phase 0)
+     * Layout change = géométrie uniquement
      */
-    const [layout, setLayout] = useState<MosaicLayout | null>(() =>
-        buildInitialLayout(containerIds)
-    );
-
-    /**
-     * 🔁 Phase 0 :
-     * dès que la structure métier change,
-     * on reconstruit le layout
-     */
-    useEffect(() => {
-        setLayout(buildInitialLayout(containerIds));
-    }, [containerIds.join("|")]);
-
-    /**
-     * onChange(layout)
-     * → géométrie UNIQUEMENT
-     */
-    const handleLayoutChange = (nextLayout: MosaicLayout | null) => {
-        setLayout(nextLayout);
+    const handleLayoutChange = (next: Layout | null) => {
+        onStateChange(s => ({ ...s, layout: next }));
     };
 
     /**
-     * onRemove(containerId)
-     * → fermeture visuelle
-     * → PAS un detach
+     * Suppression visuelle d’un container (Mosaic ✕)
+     * ⚠️ PAS un detach
      */
     const handleRemove = (containerId: string) => {
-        onWorkspaceChange((ws) => ({
-            ...ws,
-            containers: Object.fromEntries(
-                Object.entries(ws.containers).filter(
-                    ([id]) => id !== containerId
-                )
-            ),
-        }));
+        onStateChange(s => {
+            const nextWorkspace: Workspace = {
+                containers: Object.fromEntries(
+                    Object.entries(s.workspace.containers)
+                        .filter(([id]) => id !== containerId)
+                ),
+            };
+
+            const validIds = new Set(Object.keys(nextWorkspace.containers));
+
+            return {
+                ...s,
+                workspace: nextWorkspace,
+                layout: pruneLayout(s.layout, validIds),
+            };
+        });
     };
 
     /**
-     * Rendu d’un container
+     * Rendu d’un tile
      */
     const renderTile = (containerId: string, path: any) => {
         const container: Container | undefined =
@@ -108,38 +119,33 @@ export function WorkspaceMosaicView({
                 path={path}
                 title={`Container ${containerId}`}
                 onRemove={() => handleRemove(containerId)}
-                renderToolbar={(props) => (
-                    <div
-                        className="my-toolbar"
-                        style={{
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "space-between", // 👈 CLÉ
-                            width: "100%",
-                            padding: "0 6px",
-                        }}
-                    >                        <span>{props.title}</span>
-                        {props.onRemove && (
-                            <button onClick={props.onRemove}>×</button>
-                        )}
-                    </div>
-                )}
             >
                 <ContainerView
                     container={container}
                     workspace={workspace}
-                    onWorkspaceChange={onWorkspaceChange}
+                    onWorkspaceChange={(ws) =>
+                        onStateChange(s => {
+                            const validIds = new Set(Object.keys(ws.containers));
+                            return {
+                                ...s,
+                                workspace: ws,
+                                layout: pruneLayout(s.layout, validIds),
+                            };
+                        })
+                    }
                 />
             </MosaicWindow>
         );
     };
 
+    const validIds = new Set(Object.keys(workspace.containers));
+    const effectiveLayout = pruneLayout(layout, validIds);
+
     return (
         <Mosaic<string>
-            value={layout}
+            value={effectiveLayout}
             onChange={handleLayoutChange}
             renderTile={renderTile}
         />
     );
 }
-
