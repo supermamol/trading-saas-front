@@ -6,7 +6,10 @@ import {
 
 import type { Workspace } from "../model/workspace";
 import type { Container } from "../model/container";
+import { closeTab } from "../model/workspace";
+import { detachPanel } from "../model/workspace.panels";
 import { ContainerView } from "./ContainerView";
+
 
 /* ======================================================
  * Types
@@ -80,19 +83,19 @@ export function WorkspaceMosaicView({
      * Suppression visuelle d’un container (Mosaic ✕)
      * ⚠️ PAS un detach
      */
-     const handleRemove = (containerId: string) => {
+    const handleRemove = (containerId: string) => {
         onStateChange(s => ({
-          ...s,
-          layout: pruneLayout(
-            s.layout,
-            new Set(
-              Object.keys(s.workspace.containers)
-                .filter(id => id !== containerId)
-            )
-          ),
+            ...s,
+            layout: pruneLayout(
+                s.layout,
+                new Set(
+                    Object.keys(s.workspace.containers)
+                        .filter(id => id !== containerId)
+                )
+            ),
         }));
-      };
-      
+    };
+
     /**
      * Rendu d’un tile
      */
@@ -132,18 +135,30 @@ export function WorkspaceMosaicView({
             >
                 <ContainerView
                     container={container}
-                    workspace={workspace}
-                    onWorkspaceChange={(ws) =>
-                        onStateChange(s => {
-                            const validIds = new Set(Object.keys(ws.containers));
+                    onCloseTab={(tabId) =>
+                        onStateChange((s) => {
+                            const nextWorkspace = closeTab(s.workspace, tabId);
+                            const validIds = new Set(Object.keys(nextWorkspace.containers));
                             return {
                                 ...s,
-                                workspace: ws,
+                                workspace: nextWorkspace,
+                                layout: pruneLayout(s.layout, validIds),
+                            };
+                        })
+                    }
+                    onDetachTab={(tab) =>
+                        onStateChange((s) => {
+                            const { workspace: nextWs } = detachPanel(s.workspace, tab);
+                            const validIds = new Set(Object.keys(nextWs.containers));
+                            return {
+                                ...s,
+                                workspace: nextWs,
                                 layout: pruneLayout(s.layout, validIds),
                             };
                         })
                     }
                 />
+
             </MosaicWindow>
         );
     };

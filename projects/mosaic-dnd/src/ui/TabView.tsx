@@ -2,18 +2,19 @@ import { useDraggable } from "@dnd-kit/core";
 import type { Tab } from "../model/tab";
 import type { ContainerId } from "../model/ids";
 
+type Props = {
+  tab: Tab;
+  containerId: ContainerId;
+  onDetach: (tab: Tab) => void;
+  onClose: (tabId: string) => void;
+};
 
 export function TabView({
   tab,
   containerId,
   onDetach,
   onClose,
-}: {
-  tab: Tab;
-  containerId: ContainerId;
-  onDetach: (tab: Tab) => void;
-  onClose: (tabId: string) => void;
-}) {
+}: Props) {
   const { attributes, listeners, setNodeRef } = useDraggable({
     id: `tab-${tab.id}`,
     data: {
@@ -36,44 +37,18 @@ export function TabView({
         background: "#ffffff",
       }}
     >
-      {/* ✅ ZONE DRAG UNIQUEMENT */}
+      {/* zone drag */}
       <div
         {...listeners}
         {...attributes}
-        style={{
-          flex: 1,
-          cursor: "grab",
-          userSelect: "none",
-          color: "#111827",
-        }}
+        style={{ flex: 1, cursor: "grab", userSelect: "none" }}
       >
         Tab {tab.id}
       </div>
 
-      {/* ACTIONS (NON DRAGGABLES) */}
-      <button
-        aria-label="Detach tab"
-        onClick={() => onDetach(tab)}
-        style={{
-          fontSize: 11,
-          opacity: 0.6,
-          cursor: "pointer",
-        }}
-      >
-        detach
-      </button>
-
-      <button
-        aria-label="Close tab"
-        onClick={() => onClose(tab.id)}
-        style={{
-          fontSize: 11,
-          opacity: 0.6,
-          cursor: "pointer",
-        }}
-      >
-        ×
-      </button>
+      {/* actions */}
+      <button onClick={() => onDetach(tab)}>detach</button>
+      <button onClick={() => onClose(tab.id)}>×</button>
     </div>
   );
 }
