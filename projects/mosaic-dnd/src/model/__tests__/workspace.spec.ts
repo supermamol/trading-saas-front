@@ -30,25 +30,24 @@ function workspace(containers: Container[]): Workspace {
 
 describe("DnD tab-centric model", () => {
 
-    it("tab → entête : groupement (auto-dissolution source)", () => {
-        const ws = workspace([
-          container("C1", [tab("A")]),
-          container("C2", [tab("B")]),
-        ]);
-      
-        const next = handleTabDrop(ws, "A", {
-          type: "header",
-          containerId: "C2",
-        });
-      
-        // C1 a été auto-dissous
-        expect(next.containers["C1"]).toBeUndefined();
-      
-        // C2 contient maintenant B + A
-        expect(next.containers["C2"].tabs.map(t => t.id))
-          .toEqual(["B", "A"]);
-      });
-      
+  it("tab → entête : groupement (auto-dissolution source)", () => {
+    const ws = workspace([
+      container("C1", [tab("A")]),
+      container("C2", [tab("B")]),
+    ]);
+
+    const next = handleTabDrop(ws, "A", {
+      type: "header",
+      containerId: "C2",
+    });
+
+    // C1 a été auto-dissous
+    expect(next.containers["C1"]).toBeUndefined();
+
+    // C2 contient maintenant B + A
+    expect(next.containers["C2"].tabs.map(t => t.id))
+      .toEqual(["B", "A"]);
+  });
 
   it("tab → hors entête (container > 1) : isolation", () => {
     const ws = workspace([
@@ -70,16 +69,18 @@ describe("DnD tab-centric model", () => {
     expect(isolated.tabs.map(t => t.id)).toEqual(["B"]);
   });
 
-  it("tab → hors entête (container = 1) : fermeture", () => {
+  it("tab → hors entête (container = 1) : isolation (remplacement du container)", () => {
     const ws = workspace([
       container("C1", [tab("A")]),
     ]);
-
+  
     const next = handleTabDrop(ws, "A", {
       type: "outside",
     });
-
-    expect(Object.keys(next.containers).length).toBe(0);
+  
+    const containers = Object.values(next.containers);
+    expect(containers.length).toBe(1);
+    expect(containers[0].tabs.map(t => t.id)).toEqual(["A"]);
   });
 
   it("container à 1 tab reste valide", () => {
@@ -97,4 +98,5 @@ describe("DnD tab-centric model", () => {
     expect(remaining).toBeDefined();
     expect(remaining!.tabs.map(t => t.id)).toEqual(["A"]);
   });
+
 });

@@ -135,45 +135,54 @@ export function closeTab(
  * - si le container source contient > 1 tab → isolation
  * - sinon → fermeture du tab
  */
-export function isolateTab(
+ export function isolateTab(
   workspace: Workspace,
-  tab: Tab,
-  newContainerId: ContainerId
-): Workspace {
-  const source = findContainerByTab(workspace, tab.id);
+  tabId: TabId
+): {
+  workspace: Workspace;
+  newContainerId: ContainerId;
+} {
+  const source = findContainerByTab(workspace, tabId);
   if (!source) {
-    throw new Error(`Source container not found for tab ${tab.id}`);
+    throw new Error(`Source container not found for tab ${tabId}`);
   }
 
-  if (source.tabs.length === 1) {
-    // isolation impossible → fermeture
-    return closeTab(workspace, tab.id);
+  const tab = source.tabs.find(t => t.id === tabId);
+  if (!tab) {
+    throw new Error(`Tab ${tabId} not found in source container`);
   }
 
-  const nextSource = removeTab(source, tab.id);
+  const newContainerId: ContainerId = `C_${crypto.randomUUID()}`;
 
   const newContainer: Container = {
     id: newContainerId,
     tabs: [tab],
   };
 
+  // Retirer le tab du container source
+  const nextContainers = { ...workspace.containers };
+
+  if (source.tabs.length > 1) {
+    nextContainers[source.id] = removeTab(source, tabId);
+  } else {
+    // source = 1 tab → suppression du container
+    delete nextContainers[source.id];
+  }
+
+  nextContainers[newContainerId] = newContainer;
+
   return {
-    containers: {
-      ...workspace.containers,
-      [source.id]: nextSource,
-      [newContainerId]: newContainer,
-    },
+    workspace: { containers: nextContainers },
+    newContainerId,
   };
 }
-
 export function isolateTabById(
   workspace: Workspace,
-  tabId: TabId,
-  newContainerId: ContainerId
+  tabId: TabId
 ): Workspace {
   const source = findContainerByTab(workspace, tabId);
   if (!source) return workspace;
   const tab = source.tabs.find(t => t.id === tabId);
   if (!tab) return workspace;
-  return isolateTab(workspace, tab, newContainerId);
+  return isolateTab(workspace, tabId).workspace;
 }

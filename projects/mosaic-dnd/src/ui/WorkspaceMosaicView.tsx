@@ -80,25 +80,19 @@ export function WorkspaceMosaicView({
      * Suppression visuelle d’un container (Mosaic ✕)
      * ⚠️ PAS un detach
      */
-    const handleRemove = (containerId: string) => {
-        onStateChange(s => {
-            const nextWorkspace: Workspace = {
-                containers: Object.fromEntries(
-                    Object.entries(s.workspace.containers)
-                        .filter(([id]) => id !== containerId)
-                ),
-            };
-
-            const validIds = new Set(Object.keys(nextWorkspace.containers));
-
-            return {
-                ...s,
-                workspace: nextWorkspace,
-                layout: pruneLayout(s.layout, validIds),
-            };
-        });
-    };
-
+     const handleRemove = (containerId: string) => {
+        onStateChange(s => ({
+          ...s,
+          layout: pruneLayout(
+            s.layout,
+            new Set(
+              Object.keys(s.workspace.containers)
+                .filter(id => id !== containerId)
+            )
+          ),
+        }));
+      };
+      
     /**
      * Rendu d’un tile
      */
@@ -119,6 +113,22 @@ export function WorkspaceMosaicView({
                 path={path}
                 title={`Container ${containerId}`}
                 onRemove={() => handleRemove(containerId)}
+                renderToolbar={(props) => (
+                    <div
+                        className="my-toolbar"
+                        style={{
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "space-between", // 👈 CLÉ
+                            width: "100%",
+                            padding: "0 6px",
+                        }}
+                    >                        <span>{props.title}</span>
+                        {props.onRemove && (
+                            <button onClick={props.onRemove}>×</button>
+                        )}
+                    </div>
+                )}
             >
                 <ContainerView
                     container={container}

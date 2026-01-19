@@ -61,14 +61,14 @@ export type DropTarget =
     }
 
     case "outside": {
-      // Isolate (ou no-op selon règles)
-      return isolateTab(
+      const { workspace: next } = isolateTab(
         workspace,
-        tab,
+        tab.id,
         generateContainerId()
       );
+      return next;
     }
-
+    
     default:
       return workspace; // 🔒 sécurité absolue
   }

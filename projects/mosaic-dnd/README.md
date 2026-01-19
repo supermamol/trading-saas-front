@@ -1243,4 +1243,32 @@ sequenceDiagram
 | Nouvelle fenêtre OS  | `detach`     |
 
 
+ISOLATE :
+
+Cas 1 — source > 1 tab
+C1: [A, B]
+isolate A
+→ C1: [B]
+→ Cx: [A]
+
+Cas 2 — source = 1 tab
+C1: [A]
+isolate A
+→ C1 supprimé
+→ Cx: [A]
+
+Quand source = 1 tab :
+
+    Mosaic va :
+
+        supprimer un node
+
+        en ajouter un autre
+
+    visuellement :
+
+        le panel “bouge”
+
+        mais l’utilisateur voit le même contenu
+
 

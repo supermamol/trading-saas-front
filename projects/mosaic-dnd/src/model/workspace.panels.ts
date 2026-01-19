@@ -120,7 +120,7 @@ export type DetachedPanel = {
  * - ne laisse aucun container vide
  * - retourne la description métier du panel détaché
  */
-  import { findContainerByTab, isolateTab, closeTab } from "./workspace";
+  import { findContainerByTab, isolateTabById, closeTab } from "./workspace";
   import type { Tab } from "./tab";
   import type { Workspace } from "./workspace";
   
@@ -144,9 +144,9 @@ export type DetachedPanel = {
   
     // cas 1 : le container contient plusieurs tabs → isolation
     if (source.tabs.length > 1) {
-      const nextWorkspace = isolateTab(
+      const nextWorkspace = isolateTabById(
         workspace,
-        tab,
+        tab.id,
         `detached-${tab.id}` as any
       );
   
