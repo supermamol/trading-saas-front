@@ -144,4 +144,27 @@
    background: #f8fafc;
    border: 1px dashed #cbd5f5;
  }
- 
+ .container-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 4px 8px;
+  background: #dbeafe;
+  border-bottom: 1px solid #c7d2fe;
+}
+
+.tab-actions {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+}
+
+.tab-actions button {
+  font-size: 0.75rem;
+  padding: 2px 6px;
+}
+
+.tab-actions button:first-child {
+  cursor: grab;
+}
+
