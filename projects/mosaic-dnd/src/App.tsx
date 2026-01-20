@@ -41,6 +41,11 @@ export default function App() {
     return { workspace, layout };
   });
 
+  // 🔍 DEBUG DEV : exposer le workspace courant
+  if (import.meta.env.DEV) {
+    (window as any).__workspace = state.workspace;
+  }
+
   return (
     <div
       style={{

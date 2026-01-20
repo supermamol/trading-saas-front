@@ -1,7 +1,6 @@
 import { useDroppable } from "@dnd-kit/core";
 import type { Container } from "../model/container";
 import type { Tab } from "../model/tab";
-import { activateTab } from "../model/container";
 import { TabView } from "./TabView";
 import { TablistView } from "./TablistView";
 
@@ -9,14 +8,14 @@ type Props = {
   container: Container;
   onCloseTab: (tabId: string) => void;
   onDetachTab: (tab: Tab) => void;
-  onUpdateContainer: (container: Container) => void;
+  onSelectTab: (containerId: string, tabId: string) => void;
 };
 
 export function ContainerView({
   container,
   onCloseTab,
   onDetachTab,
-  onUpdateContainer,
+  onSelectTab,
 }: Props) {
   const { setNodeRef, isOver } = useDroppable({
     id: `container-${container.id}`,
@@ -44,10 +43,10 @@ export function ContainerView({
       {/* TABLIST */}
       <TablistView
         tabs={container.tabs}
-        onSelectTab={(tabId) => {
-          const next = activateTab(container, tabId);
-          onUpdateContainer(next);
-        }}
+        activeTabId={activeTab.id}
+        onSelectTab={(tabId) =>
+          onSelectTab(container.id, tabId)
+        }
       />
 
       {/* CONTENU DU TAB ACTIF */}
