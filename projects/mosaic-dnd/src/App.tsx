@@ -70,7 +70,7 @@ export default function App() {
   return (
     <div
       style={{
-        height: "calc(100vh - 80px)",
+        height: "calc(100vh - 20px)",
         background: "#f3f4f6",
         padding: 12,
       }}
