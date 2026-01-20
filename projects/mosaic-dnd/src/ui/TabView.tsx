@@ -11,44 +11,39 @@ type Props = {
 
 export function TabView({
   tab,
-  containerId,
-  onDetach,
   onClose,
+  onDetach,
 }: Props) {
-  const { attributes, listeners, setNodeRef } = useDraggable({
-    id: `tab-${tab.id}`,
-    data: {
-      type: "tab",
-      tabId: tab.id,
-      sourceContainerId: containerId,
-    },
-  });
-
   return (
-    <div
-      ref={setNodeRef}
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 6,
-        padding: "4px 6px",
-        border: "1px solid #d1d5db",
-        borderRadius: 4,
-        background: "#ffffff",
-      }}
-    >
-      {/* zone drag */}
-      <div
-        {...listeners}
-        {...attributes}
-        style={{ flex: 1, cursor: "grab", userSelect: "none" }}
-      >
-        Tab {tab.id}
+    <div className="tab-view">
+
+      {/* HEADER FIN */}
+      <div className="tab-view-header">
+        {/* Zone drag (future) */}
+        <div className="tab-view-title">
+          {tab.id}
+        </div>
+
+        {/* Actions */}
+        <div className="tab-view-actions">
+          <button onClick={() => onDetach(tab)}>detach</button>
+          <button onClick={() => onClose(tab.id)}>×</button>
+        </div>
       </div>
 
-      {/* actions */}
-      <button aria-label="Detach tab" onClick={() => onDetach(tab)}>detach</button>
-      <button aria-label="Close tab" onClick={() => onClose(tab.id)}>×</button>
+      {/* CONTENU */}
+      <div className="tab-view-content">
+        <h4>Contenu du Tab {tab.id}</h4>
+
+        <p>
+          Ici viendra le contenu métier spécifique à ce tab.
+        </p>
+
+        <div className="tab-view-placeholder">
+          Charts / forms / lists / etc.
+        </div>
+      </div>
+
     </div>
   );
 }

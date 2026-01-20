@@ -1,36 +1,147 @@
-html, body, #root {
-  height: 100%;
-  margin: 0;
-}
-
-.container-panel {
-  display: flex;
-  flex-direction: column;
-  box-sizing: border-box;
-
-  background: #ffffff;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
-  padding: 8px;
-}
-
-.mosaic {
-  gap: 8px;
-}
-
-/* Toolbar visible uniquement comme zone de drag (fine) */
-.mosaic-window-toolbar {
-  height: 16px;
-  min-height: 16px;
-}
-
-/* Cache les boutons (Expand/Close/etc.) */
-.mosaic-window-controls {
-  display: none !important;
-}
-
-/* Optionnel : rendre la zone de drag “invisible” */
-.mosaic-window-toolbar {
-  background: transparent !important;
-  border: none !important;
-}
+/* ======================================================
+ * Global
+ * ====================================================== */
+ html,
+ body,
+ #root {
+   height: 100%;
+   margin: 0;
+ }
+ 
+ /* ======================================================
+  * Mosaic layout fixes (CRUCIAL pour le scroll)
+  * ====================================================== */
+ .mosaic,
+ .mosaic-window,
+ .mosaic-window-body {
+   height: 100%;
+   min-height: 0;
+ }
+ 
+ .mosaic {
+   gap: 8px;
+ }
+ 
+ /* Toolbar Mosaic : zone de drag fine, sans UI parasite */
+ .mosaic-window-toolbar {
+   height: 16px;
+   min-height: 16px;
+   background: transparent !important;
+   border: none !important;
+ }
+ 
+ /* Cache les boutons Mosaic natifs */
+ .mosaic-window-controls {
+   display: none !important;
+ }
+ 
+ /* ======================================================
+  * Container (panel)
+  * ====================================================== */
+ .container-panel {
+   display: flex;
+   flex-direction: column;
+   height: 100%;
+   min-height: 0; /* 🔥 indispensable pour le scroll */
+ 
+   box-sizing: border-box;
+   padding: 8px;
+ 
+   background: #f4f2de;
+   border: 1px solid #d1d5db;
+   border-radius: 6px;
+ }
+ 
+ /* ======================================================
+  * Tablist (onglets)
+  * ====================================================== */
+ .tablist {
+   display: flex;
+   gap: 4px;
+   padding: 4px 8px;
+ 
+   background: #c7dff5;
+   border-bottom: 1px solid #bbb;
+ }
+ 
+ .tab {
+   padding: 4px 10px;
+ 
+   font-size: 0.9rem;
+   cursor: pointer;
+ 
+   background: #efd9cb;
+   border: 1px solid #bbb;
+   border-bottom: none;
+   border-radius: 4px 4px 0 0;
+ }
+ 
+ .tab--active {
+   background: #d9f3cc;
+   font-weight: bold;
+   position: relative;
+   top: 1px; /* effet "onglet posé" */
+ }
+ 
+ /* ======================================================
+  * Tab view (contenu du tab actif)
+  * ====================================================== */
+ .tab-view {
+   display: flex;
+   flex-direction: column;
+   flex: 1;
+   min-height: 0; /* 🔥 clé */
+ }
+ 
+ /* Header fin du tab */
+ .tab-view-header {
+   display: flex;
+   align-items: center;
+   justify-content: space-between;
+ 
+   height: 28px;
+   padding: 0 8px;
+   box-sizing: border-box;
+ 
+   background: #f9fafb;
+   border-bottom: 1px solid #d1d5db;
+ }
+ 
+ /* Zone drag (future poignée DnD) */
+ .tab-view-title {
+   font-size: 0.85rem;
+   font-weight: 500;
+   cursor: grab;
+   user-select: none;
+ }
+ 
+ /* Actions à droite */
+ .tab-view-actions {
+   display: flex;
+   gap: 6px;
+ }
+ 
+ .tab-view-actions button {
+   font-size: 0.75rem;
+   padding: 2px 6px;
+ }
+ 
+ /* ======================================================
+  * Zone scrollable du contenu
+  * ====================================================== */
+ .tab-view-content {
+   flex: 1;
+   min-height: 0;        /* 🔥 indispensable */
+   padding: 12px;
+   overflow-y: auto;
+ }
+ 
+ /* Placeholder visuel (dev only) */
+ .tab-view-placeholder {
+   margin-top: 12px;
+   padding: 12px;
+ 
+   background: #f8fafc;
+   border: 1px dashed #cbd5f5;
+ }
+ 

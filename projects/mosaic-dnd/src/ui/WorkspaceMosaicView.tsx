@@ -114,25 +114,25 @@ export function WorkspaceMosaicView({
         return (
             <MosaicWindow<string>
                 path={path}
-                title={`Container ${containerId}`}
                 onRemove={() => handleRemove(containerId)}
                 renderToolbar={(props) => (
                     <div
-                        className="my-toolbar"
-                        style={{
-                            display: "flex",
-                            alignItems: "center",
-                            justifyContent: "space-between", // 👈 CLÉ
-                            width: "100%",
-                            padding: "0 6px",
-                        }}
-                    >                        <span>{props.title}</span>
-                        {props.onRemove && (
-                            <button onClick={props.onRemove}>×</button>
-                        )}
+                      className="my-toolbar"
+                      style={{
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "space-between",
+                        width: "100%",
+                        padding: "0 6px",
+                      }}
+                    >
+                      <span>{`Container ${containerId}`}</span>   {/* ✅ Titre explicite */}
+                      {props.onRemove && (
+                        <button onClick={props.onRemove}>×</button>
+                      )}
                     </div>
-                )}
-            >
+                  )}
+                              >
                 <ContainerView
                     container={container}
                     onCloseTab={(tabId) =>

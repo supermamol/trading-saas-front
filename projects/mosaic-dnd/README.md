@@ -1271,4 +1271,229 @@ Quand source = 1 tab :
 
         mais l’utilisateur voit le même contenu
 
+_______________________________________________________________________
+
+PROCHAINES ACTIONS:
+""""""""""""""""""
+
+🗺️ FEUILLE DE ROUTE VALIDÉE
+
+🧱 PHASE 0 — Socle déjà en place (OK)
+
+(rien à faire, juste pour contexte)
+
+    Container = pile LIFO de tabs
+
+    Tab actif = tabs[tabs.length - 1]
+
+    Helpers pushTab / removeTab / activateTab
+
+    Décisions UX figées (tablist ligne, header interne, grip, etc.)
+
+👉 On part sur une base saine.
+🧩 PHASE 1 — Extraire la Tablist (UI propre)
+
+👉 Prochaine action immédiate
+🎯 Objectif
+
+Isoler clairement le CU “Sélection d’un tab” dans un composant dédié.
+À faire
+
+    Créer ui/TablistView.tsx
+
+    Responsabilités :
+
+        afficher les tabs en ligne
+
+        identifier le tab actif (dernier de la pile)
+
+        gérer le onClick(tabId) → sélection
+
+Signature cible
+
+<TablistView
+  tabs={container.tabs}
+  onSelectTab={(tabId) => activateTab(containerId, tabId)}
+/>
+
+Livrable
+
+    ContainerView simplifié
+
+    logique de sélection centralisée
+
+    UX lisible
+
+❌ Pas de DnD
+❌ Pas de Detach / Close
+🖱️ PHASE 2 — CU Sélection d’un tab (métier + UI)
+
+(s’appuie directement sur Phase 1)
+🎯 Objectif
+
+Finaliser le cas d’usage manquant que tu as très bien identifié.
+À faire
+
+    Côté modèle :
+
+        utiliser activateTab(container, tabId)
+
+    Côté UI :
+
+        click onglet → appel activation
+
+        tab actif remonte visuellement à droite
+
+Livrable
+
+    sélection fluide
+
+    pile LIFO visible et compréhensible
+
+    invariant respecté partout
+
+🧱 PHASE 3 — Header du tab actif
+
+(UI, pas de métier)
+🎯 Objectif
+
+Créer la zone d’action unique du tab actif.
+À faire
+
+Dans le contenu du tab actif :
+
+    Header avec :
+
+        grip (zone drag)
+
+        bouton Detach
+
+        bouton Close
+
+    Visible uniquement pour le tab actif
+
+Livrable
+
+    séparation nette :
+
+        tablist = navigation
+
+        header = actions
+
+❌ Les boutons peuvent être branchés “à vide”
+🔀 PHASE 4 — Move Tab (métier pur)
+
+(indépendant de l’UI)
+🎯 Objectif
+
+Implémenter le déplacement entre containers compatibles.
+À faire
+
+    moveTab(workspace, tabId, targetContainerId)
+
+    règles :
+
+        compatibilité de type
+
+        removeTab source
+
+        pushTab target
+
+        suppression container source si vide
+
+Livrable
+
+    tests métier verts
+
+    aucun code UI encore
+
+🖱️ PHASE 5 — DnD branché sur le grip
+
+(UI → métier)
+🎯 Objectif
+
+Permettre le Move uniquement depuis le tab actif.
+À faire
+
+    activer le drag sur le grip du header
+
+    drop → appel moveTab
+
+    la tablist reste passive
+
+Livrable
+
+    DnD clair, non ambigu
+
+    UX alignée avec le modèle
+
+✂️ PHASE 6 — Detach
+
+(métier + UI)
+🎯 Objectif
+
+Isoler un tab actif dans son propre container.
+À faire
+
+    detachTab :
+
+        removeTab source
+
+        création nouveau container mono‑tab
+
+    bouton Detach → appel métier
+
+🔁 PHASE 7 — Rattach
+
+(finalisation)
+🎯 Objectif
+
+Retour automatique d’un tab vers un container compatible.
+À faire
+
+    ignorer toute cible UI
+
+    chercher container compatible
+
+    sinon créer nouveau container
+
+    pushTab + focus
+
+🎨 PHASE 8 — Polish UI (plus tard)
+
+    overflow tablist
+
+    scroll horizontal
+
+    styles finaux
+
+    accessibilité
+
+______________________________________________________________________
+
+
+🧭 Résumé ultra‑court
+
+Ordre recommandé (et validé) :
+
+    ✅ TablistView
+
+    ✅ CU Sélection d’un tab
+
+    ✅ Header du tab actif
+
+    🔀 Move Tab (métier)
+
+    🖱️ DnD sur le grip
+
+    ✂️ Detach
+
+    🔁 Rattach
+
+    🎨 Polish
+
+
+
+
+
 
