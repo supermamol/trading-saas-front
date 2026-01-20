@@ -1,4 +1,4 @@
- find src -type f -exec sh -c '
+find src/ui -type f -exec sh -c '
   for f do
     echo "=====> $f :"; cat $f
   done;echo

@@ -58,10 +58,6 @@
  .tablist {
    display: flex;
    gap: 4px;
-   padding: 4px 8px;
- 
-   background: #c7dff5;
-   border-bottom: 1px solid #bbb;
  }
  
  .tab {
@@ -79,8 +75,7 @@
  .tab--active {
    background: #d9f3cc;
    font-weight: bold;
-   position: relative;
-   top: 1px; /* effet "onglet posé" */
+   border-color: #666c6c;
  }
  
  /* ======================================================
@@ -190,7 +185,7 @@
 
 .container-header .tab-actions button {
   height: var(--tab-height);
-  width: var(--tab-height);      /* carré → visuellement stable */
+  width: var(--tab-height);
 
   display: inline-flex;
   align-items: center;

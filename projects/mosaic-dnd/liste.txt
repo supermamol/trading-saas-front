@@ -1,1829 +1,509 @@
-=====> src/App.css :
-#root {
-  max-width: 1280px;
-  margin: 0 auto;
-  padding: 2rem;
-  text-align: center;
+=====> src/ui/TabView.tsx :
+import type { Tab } from "../model/tab";
+
+export function TabView({ tab }: { tab: Tab }) {
+  return (
+    <div className="tab-view-content">
+      <h4>Contenu du Tab {tab.id}</h4>
+      <p>Ici viendra le contenu métier spécifique à ce tab.</p>
+      <div className="tab-view-placeholder">
+        Charts / forms / lists / etc.
+      </div>
+    </div>
+  );
 }
-
-.logo {
-  height: 6em;
-  padding: 1.5em;
-  will-change: filter;
-  transition: filter 300ms;
-}
-.logo:hover {
-  filter: drop-shadow(0 0 2em #646cffaa);
-}
-.logo.react:hover {
-  filter: drop-shadow(0 0 2em #61dafbaa);
-}
-
-@keyframes logo-spin {
-  from {
-    transform: rotate(0deg);
-  }
-  to {
-    transform: rotate(360deg);
-  }
-}
-
-@media (prefers-reduced-motion: no-preference) {
-  a:nth-of-type(2) .logo {
-    animation: logo-spin infinite 20s linear;
-  }
-}
-
-.card {
-  padding: 2em;
-}
-
-.read-the-docs {
-  color: #888;
-}
-=====> src/index.css :
-html, body, #root {
-  height: 100%;
-  margin: 0;
-}
-
-.container-panel {
-  height: 100%;
-  box-sizing: border-box;
-  border: 1px solid #999;
-  background: #fafafa;
-  padding: 8px;
-}
-=====> src/model/tab.ts :
-/**
- * Tab
- * ---
- * Représente une unité de contenu métier.
- * Un tab est toujours contenu dans exactement un container.
- */
-
- import type { TabId } from "./ids";
-
- export interface Tab {
-   id: TabId;
- 
-   /**
-    * Type métier du contenu
-    * (strategyDetail, chart, run, nodered, etc.)
-    */
-   kind: string;
- 
-   /**
-    * Données métier optionnelles
-    * (strategyId, instanceKey, etc.)
-    */
-   payload?: Record<string, unknown>;
- }
- =====> src/model/container.ts :
-import type { TabId, ContainerId } from "./ids";
-import type { Tab } from "./tab";
-
-/**
- * ContainerId
- * ---
- * Identifiant stable d’un container
- */
-
-/**
- * Container
- * ---
- * - contient une pile LIFO de tabs
- * - possède toujours un tab actif
- */
-export interface Container {
-  id: ContainerId;
-
-  /**
-   * Pile LIFO des tabs
-   * - dernier élément = tab actif
-   */
-  tabs: Tab[];
-}
-
-/* ======================================================
- * Invariants (documentaires, non codés ici)
- * ======================================================
- *
- * - tabs.length >= 1
- * - tabs[tabs.length - 1] est le tab actif
- * - un TabId n’apparaît qu’une seule fois dans le workspace
- */
-
-/* ======================================================
- * Opérations pures sur Container
- * ====================================================== */
-
-/**
- * Ajoute un tab en haut de pile (devient actif)
- */
-export function pushTab(
-  container: Container,
-  tab: Tab
-): Container {
-  return {
-    ...container,
-    tabs: [...container.tabs, tab],
+=====> src/ui/WorkspaceMosaicView.tsx :
+import {
+    Mosaic,
+    MosaicWindow,
+    type MosaicNode,
+  } from "react-mosaic-component";
+  
+  import type { Workspace } from "../model/workspace";
+  import type { Container } from "../model/container";
+  import { activateTab } from "../model/container";
+  import { closeTab } from "../model/workspace";
+  import { detachPanel } from "../model/workspace.panels";
+  import { ContainerView } from "./ContainerView";
+  
+  /* ======================================================
+   * Types
+   * ====================================================== */
+  export type Layout = MosaicNode<string>;
+  
+  export type WorkspaceState = {
+    workspace: Workspace;
+    layout: MosaicNode<string> | null;
   };
-}
-
-/**
- * Retire un tab du container
- * (peut être le tab actif ou non)
- */
-export function removeTab(
-  container: Container,
-  tabId: TabId
-): Container {
-  const nextTabs = container.tabs.filter(t => t.id !== tabId);
-
-  if (nextTabs.length === 0) {
-    throw new Error(
-      `Invariant violation: container ${container.id} cannot be empty`
+  
+  type Props = {
+    state: WorkspaceState;
+    onStateChange: (updater: (s: WorkspaceState) => WorkspaceState) => void;
+    hoveredContainerId: string | null; // 👈 AJOUT
+  };
+    
+  /* ======================================================
+   * Utils
+   * ====================================================== */
+  export function buildInitialLayout(containerIds: string[]): Layout | null {
+    if (containerIds.length === 0) return null;
+    if (containerIds.length === 1) return containerIds[0];
+  
+    return containerIds.slice(1).reduce<Layout>(
+      (acc, id) => ({
+        direction: "row",
+        first: acc,
+        second: id,
+      }),
+      containerIds[0]
     );
   }
-
-  return {
-    ...container,
-    tabs: nextTabs,
-  };
-}
-
-/**
- * Active un tab existant
- * (LIFO: on le remonte en haut de pile)
- */
-export function activateTab(
-  container: Container,
-  tabId: TabId
-): Container {
-  const tab = container.tabs.find(t => t.id === tabId);
-  if (!tab) {
-    throw new Error(`Tab ${tabId} not found in container ${container.id}`);
-  }
-
-  const without = container.tabs.filter(t => t.id !== tabId);
-
-  return {
-    ...container,
-    tabs: [...without, tab],
-  };
-}
-=====> src/model/workspace.ts :
-/* ======================================================
- * Invariants Workspace
- * ======================================================
- *
- * - un TabId n’existe que dans un seul container
- * - un container ne peut pas être vide
- * - un container avec 1 tab est valide
- * - toute opération est atomique
- */
-
-import type { Container } from "./container";
-import { pushTab, removeTab } from "./container";
-
-import type { TabId, ContainerId } from "./ids";
-import type { Tab } from "./tab";
-
-/**
- * Workspace
- * ---
- * État global du système de tabs
- */
-export interface Workspace {
-    containers: Record<ContainerId, Container>;
-}
-
-/* ======================================================
- * Sélecteurs
- * ====================================================== */
-
-export function findContainerByTab(
-    workspace: Workspace,
-    tabId: TabId
-): Container | undefined {
-    return Object.values(workspace.containers)
-        .find(c => c.tabs.some(t => t.id === tabId));
-}
-
-/* ======================================================
- * Opérations métier (atomiques)
- * ====================================================== */
-
-/**
- * Déplace un tab d’un container source vers un container cible
- * (tab -> entête)
- */
- export function moveTabToContainer(
-    workspace: Workspace,
-    tab: Tab,
-    targetContainerId: ContainerId
-  ): Workspace {
-    const source = findContainerByTab(workspace, tab.id);
-    if (!source) {
-      throw new Error(`Source container not found for tab ${tab.id}`);
+  
+  function pruneLayout(
+    node: MosaicNode<string> | null,
+    validIds: Set<string>
+  ): MosaicNode<string> | null {
+    if (!node) return null;
+  
+    if (typeof node === "string") {
+      return validIds.has(node) ? node : null;
     }
   
-    const target = workspace.containers[targetContainerId];
-    if (!target) {
-      throw new Error(`Target container ${targetContainerId} not found`);
-    }
+    const first = pruneLayout(node.first, validIds);
+    const second = pruneLayout(node.second, validIds);
   
-    const nextTarget = pushTab(target, tab);
+    if (!first && !second) return null;
+    if (!first) return second;
+    if (!second) return first;
   
-    // Cas 1️⃣ : le container source avait > 1 tab
-    if (source.tabs.length > 1) {
-      const nextSource = removeTab(source, tab.id);
-  
-      return {
-        containers: {
-          ...workspace.containers,
-          [source.id]: nextSource,
-          [target.id]: nextTarget,
-        },
-      };
-    }
-  
-    // Cas 2️⃣ : le container source avait 1 tab → auto‑dissolution
-    const { [source.id]: _, ...rest } = workspace.containers;
-  
-    return {
-      containers: {
-        ...rest,
-        [target.id]: nextTarget,
-      },
-    };
+    return { ...node, first, second };
   }
   
-
-/**
- * Isole un tab
- * (tab -> hors entête)
- *
- * - crée un nouveau container
- * - retire le tab de son container source
- */
-function removeContainer(
-    workspace: Workspace,
-    containerId: ContainerId
-): Workspace {
-    const { [containerId]: _, ...rest } = workspace.containers;
-    return { containers: rest };
-}
-
-/**
- * Ferme un tab
- *
- * - si le container contient > 1 tab → retrait simple
- * - si le container contient 1 tab → destruction du container
- */
-export function closeTab(
-    workspace: Workspace,
-    tabId: TabId
-): Workspace {
-    const source = findContainerByTab(workspace, tabId);
-    if (!source) {
-        throw new Error(`Tab ${tabId} not found`);
-    }
-
-    if (source.tabs.length > 1) {
-        const nextSource = removeTab(source, tabId);
-        return {
-            containers: {
-                ...workspace.containers,
-                [source.id]: nextSource,
-            },
-        };
-    }
-
-    // source.tabs.length === 1
-    return removeContainer(workspace, source.id);
-}
-
-/**
- * Isole un tab
- *
- * - si le container source contient > 1 tab → isolation
- * - sinon → fermeture du tab
- */
- export function isolateTab(
-    workspace: Workspace,
-    tab: Tab,
-    newContainerId: ContainerId
-  ): Workspace {
-    const source = findContainerByTab(workspace, tab.id);
-    if (!source) {
-      throw new Error(`Source container not found for tab ${tab.id}`);
-    }
+  /* ======================================================
+   * Component
+   * ====================================================== */
+  export function WorkspaceMosaicView({
+    state,
+    onStateChange,
+    hoveredContainerId,
+  }: Props) {
+    const { workspace, layout } = state;
   
-    if (source.tabs.length === 1) {
-      // isolation impossible → fermeture
-      return closeTab(workspace, tab.id);
-    }
-  
-    const nextSource = removeTab(source, tab.id);
-  
-    const newContainer: Container = {
-      id: newContainerId,
-      tabs: [tab],
+    /* Layout change = géométrie uniquement */
+    const handleLayoutChange = (next: Layout | null) => {
+      onStateChange(s => ({ ...s, layout: next }));
     };
   
-    return {
-      containers: {
-        ...workspace.containers,
-        [source.id]: nextSource,
-        [newContainerId]: newContainer,
-      },
-    };
-  }
-
-=====> src/model/dnd.ts :
-import type { Workspace } from "./workspace";
-
-import type { TabId } from "./ids";
-import type { ContainerId } from "./ids";
-
-import {
-  moveTabToContainer,
-  isolateTab,
-  closeTab,
-  findContainerByTab,
-} from "./workspace";
-
-/* ======================================================
- * Types DnD
- * ====================================================== */
-
-export type DropTarget =
-  | {
-      type: "header";
-      containerId: ContainerId;
-    }
-  | {
-      type: "outside";
-    };
-
-/* ======================================================
- * Intention DnD → Action métier
- * ====================================================== */
-
-/**
- * Point d’entrée UNIQUE pour le Drag & Drop
- *
- * Le DnD exprime une intention,
- * le modèle décide de l’effet réel.
- */
-export function handleTabDrop(
-  workspace: Workspace,
-  tabId: TabId,
-  target: DropTarget
-): Workspace {
-  const source = findContainerByTab(workspace, tabId);
-  if (!source) {
-    throw new Error(`Source container not found for tab ${tabId}`);
-  }
-
-  const tab = source.tabs.find(t => t.id === tabId);
-  if (!tab) {
-    throw new Error(`Tab ${tabId} not found`);
-  }
-
-  switch (target.type) {
-    case "header": {
-      // tab -> entête
-      return moveTabToContainer(
-        workspace,
-        tab,
-        target.containerId
-      );
-    }
-
-    case "outside": {
-      // tab -> hors entête
-      // le modèle décide : isolation OU fermeture
-      return isolateTab(
-        workspace,
-        tab,
-        generateContainerId()
-      );
-    }
-  }
-}
-
-let containerSeq = 0;
-
-function generateContainerId(): ContainerId {
-  containerSeq += 1;
-  return `container-${containerSeq}`;
-}
-
-=====> src/model/__tests__/workspace.spec.ts :
-import { describe, it, expect } from "vitest";
-import type { Workspace } from "../workspace";
-import type { Container } from "../container";
-import type { Tab } from "../tab";
-import { handleTabDrop } from "../dnd";
-
-/* ======================================================
- * Helpers de test
- * ====================================================== */
-
-function tab(id: string): Tab {
-  return { id, kind: "test" };
-}
-
-function container(id: string, tabs: Tab[]): Container {
-  return { id, tabs };
-}
-
-function workspace(containers: Container[]): Workspace {
-  return {
-    containers: Object.fromEntries(
-      containers.map(c => [c.id, c])
-    ),
-  };
-}
-
-/* ======================================================
- * Tests
- * ====================================================== */
-
-describe("DnD tab-centric model", () => {
-
-    it("tab → entête : groupement (auto-dissolution source)", () => {
-        const ws = workspace([
-          container("C1", [tab("A")]),
-          container("C2", [tab("B")]),
-        ]);
-      
-        const next = handleTabDrop(ws, "A", {
-          type: "header",
-          containerId: "C2",
-        });
-      
-        // C1 a été auto-dissous
-        expect(next.containers["C1"]).toBeUndefined();
-      
-        // C2 contient maintenant B + A
-        expect(next.containers["C2"].tabs.map(t => t.id))
-          .toEqual(["B", "A"]);
-      });
-      
-
-  it("tab → hors entête (container > 1) : isolation", () => {
-    const ws = workspace([
-      container("C1", [tab("A"), tab("B")]),
-    ]);
-
-    const next = handleTabDrop(ws, "B", {
-      type: "outside",
-    });
-
-    const containers = Object.values(next.containers);
-
-    expect(containers.length).toBe(2);
-
-    const isolated = containers.find(c =>
-      c.tabs.some(t => t.id === "B")
-    )!;
-
-    expect(isolated.tabs.map(t => t.id)).toEqual(["B"]);
-  });
-
-  it("tab → hors entête (container = 1) : fermeture", () => {
-    const ws = workspace([
-      container("C1", [tab("A")]),
-    ]);
-
-    const next = handleTabDrop(ws, "A", {
-      type: "outside",
-    });
-
-    expect(Object.keys(next.containers).length).toBe(0);
-  });
-
-  it("container à 1 tab reste valide", () => {
-    const ws = workspace([
-      container("C1", [tab("A"), tab("B")]),
-    ]);
-
-    const next = handleTabDrop(ws, "B", {
-      type: "outside",
-    });
-
-    const remaining = Object.values(next.containers)
-      .find(c => c.tabs.some(t => t.id === "A"));
-
-    expect(remaining).toBeDefined();
-    expect(remaining!.tabs.map(t => t.id)).toEqual(["A"]);
-  });
-});
-=====> src/model/__tests__/Workspace-AD-DebugView.spec.tsx :
-import { render, screen, fireEvent } from "@testing-library/react";
-import { useState } from "react";
-import { describe, it, expect } from "vitest";
-
-import { WorkspaceADDebugView } from "../../ui/Workspace-AD-DebugView";
-import type { Workspace } from "../../model/workspace";
-
-function TestHost() {
-  const [workspace, setWorkspace] = useState<Workspace>({
-    containers: {},
-  });
-
-  return (
-    <WorkspaceADDebugView
-      workspace={workspace}
-      setWorkspace={setWorkspace}
-    />
-  );
-}
-
-describe("Workspace-AD-DebugView", () => {
-  it("detaches a panel from its container", () => {
-    render(<TestHost />);
-
-    fireEvent.click(screen.getByText("Open Chart S1"));
-    fireEvent.click(screen.getByText("Open Chart S1"));
-
-    // on a bien 2 tabs
-    expect(screen.getAllByText(/detach/i).length).toBe(2);
-
-    // detach du premier
-    fireEvent.click(screen.getAllByText("detach")[0]);
-
-    // il n'en reste plus qu'un
-    expect(screen.getAllByText(/detach/i).length).toBe(1);
-  });
-});
-=====> src/model/__tests__/workspace.detach.spec.ts :
-// workspace.detach.spec.ts
-import { describe, it, expect } from "vitest";
-import { openPanel, detachPanel } from "../workspace.panels";
-
-import type { Workspace } from "../workspace";
-import type { Container } from "../container";
-import type { Tab } from "../tab";
-
-/* =========================================================
- * Helpers de test (alignés modèle réel)
- * ======================================================= */
-
-function emptyWorkspace(): Workspace {
-  return { containers: {} };
-}
-
-function containers(ws: Workspace): Container[] {
-  return Object.values(ws.containers);
-}
-
-function containerCount(ws: Workspace): number {
-  return containers(ws).length;
-}
-
-function allTabs(ws: Workspace): Tab[] {
-  return containers(ws).flatMap(c => c.tabs);
-}
-
-function findTab(ws: Workspace, tabId: string): Tab | undefined {
-  return allTabs(ws).find(t => t.id === tabId);
-}
-
-/* =========================================================
- * Tests — openPanel
- * ======================================================= */
-
-describe("openPanel", () => {
-  it("crée un container si aucun compatible n'existe", () => {
-    const ws0 = emptyWorkspace();
-
-    const ws1 = openPanel(ws0, "Chart", { strategyId: "S1" });
-
-    expect(containerCount(ws1)).toBe(1);
-
-    const c = containers(ws1)[0];
-    expect(c.tabs.length).toBe(1);
-    expect(c.groupKey).toEqual({
-      kind: "Chart",
-      strategyId: "S1",
-    });
-  });
-
-  it("regroupe les panels par GroupKey", () => {
-    let ws = emptyWorkspace();
-
-    ws = openPanel(ws, "Chart", { strategyId: "S1" });
-    ws = openPanel(ws, "Chart", { strategyId: "S1" });
-
-    expect(containerCount(ws)).toBe(1);
-    expect(containers(ws)[0].tabs.length).toBe(2);
-  });
-
-  it("ne mélange pas des panels de contextes différents", () => {
-    let ws = emptyWorkspace();
-
-    ws = openPanel(ws, "Chart", { strategyId: "S1" });
-    ws = openPanel(ws, "Chart", { strategyId: "S2" });
-
-    expect(containerCount(ws)).toBe(2);
-  });
-});
-
-/* =========================================================
- * Tests — detachPanel
- * ======================================================= */
-
-describe("detachPanel", () => {
-  it("retire le tab du workspace", () => {
-    let ws = emptyWorkspace();
-    ws = openPanel(ws, "Chart", { strategyId: "S1" });
-
-    const tab = allTabs(ws)[0];
-
-    const result = detachPanel(ws, tab);
-    const ws2 = result.workspace;
-
-    expect(findTab(ws2, tab.id)).toBeUndefined();
-    expect(result.detached.kind).toBe("Chart");
-    expect(result.detached.context.strategyId).toBe("S1");
-  });
-
-  it("supprime le container s'il devient vide", () => {
-    let ws = emptyWorkspace();
-    ws = openPanel(ws, "Run", { strategyId: "S1" });
-
-    const tab = allTabs(ws)[0];
-
-    const { workspace: ws2 } = detachPanel(ws, tab);
-
-    expect(containerCount(ws2)).toBe(0);
-  });
-});
-
-/* =========================================================
- * Tests — retour d'un panel détaché
- * ======================================================= */
-
-describe("return detached panel", () => {
-  it("revient via openPanel (pas de restauration de position)", () => {
-    let ws = emptyWorkspace();
-    ws = openPanel(ws, "Chart", { strategyId: "S1" });
-
-    const tab = allTabs(ws)[0];
-    const { workspace: ws2, detached } = detachPanel(ws, tab);
-
-    const ws3 = openPanel(ws2, detached.kind, detached.context);
-
-    expect(containerCount(ws3)).toBe(1);
-    expect(containers(ws3)[0].tabs.length).toBe(1);
-  });
-});
-=====> src/model/ids.ts :
-export type TabId = string;
-export type ContainerId = string;
-=====> src/model/workspace.panels.ts :
-/* ======================================================
- * Workspace Panels
- * ======================================================
- *
- * Couche d’orchestration métier AU‑DESSUS des tabs.
- *
- * Responsabilités :
- * - openPanel (logique métier + GroupKey)
- * - detachPanel (sortie vers fenêtre)
- * - retour via openPanel
- *
- * Ne gère PAS :
- * - layout
- * - Mosaic
- * - UI
- */
-
-import type { Workspace } from "./workspace";
-import type { Tab } from "./tab";
-import type { ContainerId } from "./ids";
-
-/* ======================================================
- * Types métier Panels
- * ====================================================== */
-
-export type PanelKind =
-  | "Strategies"
-  | "StrategyDetail"
-  | "Chart"
-  | "Run"
-  | "Nodered";
-
-export type PanelContext = {
-  strategyId?: string;
-};
-
-export type DetachedPanel = {
-  kind: PanelKind;
-  context: PanelContext;
-};
-
-/* ======================================================
- * API publique (à implémenter)
- * ====================================================== */
-
-/**
- * Ouvre un panel selon les règles métier :
- * - calcul GroupKey
- * - regroupement ou création
- * - délègue aux opérations sur tabs
- */
- import { pushTab } from "./container";
- import type { Container } from "./container";
- import type { Tab } from "./tab";
- import type { ContainerId } from "./ids";
- 
- let nextContainerId = 1;
- let nextTabId = 1;
- 
- function makeTab(kind: PanelKind, context: PanelContext): Tab {
-   return {
-     id: `tab-${nextTabId++}` as any,
-     kind,
-     context,
-   } as Tab;
- }
- 
- function groupKeyFor(kind: PanelKind, context: PanelContext) {
-   return {
-     kind,
-     strategyId: context.strategyId,
-   };
- }
- 
- export function openPanel(
-   workspace: Workspace,
-   kind: PanelKind,
-   context: PanelContext
- ): Workspace {
-   const tab = makeTab(kind, context);
-   const groupKey = groupKeyFor(kind, context);
- 
-   // 1️⃣ chercher un container compatible
-   const existing = Object.values(workspace.containers).find(
-     c =>
-       c.groupKey?.kind === groupKey.kind &&
-       c.groupKey?.strategyId === groupKey.strategyId
-   );
- 
-   if (existing) {
-     const next = pushTab(existing, tab);
-     return {
-       containers: {
-         ...workspace.containers,
-         [existing.id]: next,
-       },
-     };
-   }
- 
-   // 2️⃣ créer un nouveau container
-   const containerId = `container-${nextContainerId++}` as ContainerId;
- 
-   const newContainer: Container = {
-     id: containerId,
-     groupKey,
-     tabs: [tab],
-   };
- 
-   return {
-     containers: {
-       ...workspace.containers,
-       [containerId]: newContainer,
-     },
-   };
- }
- 
- /**
- * Détache un panel :
- * - retire le tab du workspace
- * - ne laisse aucun container vide
- * - retourne la description métier du panel détaché
- */
-  import { findContainerByTab, isolateTab, closeTab } from "./workspace";
-  import type { Tab } from "./tab";
-  import type { Workspace } from "./workspace";
-  
-  export function detachPanel(
-    workspace: Workspace,
-    tab: Tab
-  ): {
-    workspace: Workspace;
-    detached: { kind: any; context: any };
-  } {
-    const source = findContainerByTab(workspace, tab.id);
-    if (!source) {
-      throw new Error(`Tab ${tab.id} not found in workspace`);
-    }
-  
-    // description métier du panel détaché
-    const detached = {
-      kind: tab.kind,
-      context: tab.context,
-    };
-  
-    // cas 1 : le container contient plusieurs tabs → isolation
-    if (source.tabs.length > 1) {
-      const nextWorkspace = isolateTab(
-        workspace,
-        tab,
-        `detached-${tab.id}` as any
-      );
-  
-      // le container créé par isolateTab doit être supprimé
-      const { [`detached-${tab.id}` as any]: _, ...rest } =
-        nextWorkspace.containers;
-  
-      return {
-        workspace: { containers: rest },
-        detached,
-      };
-    }
-  
-    // cas 2 : le container ne contient qu’un tab → fermeture simple
-    const nextWorkspace = closeTab(workspace, tab.id);
-  
-    return {
-      workspace: nextWorkspace,
-      detached,
-    };
-  }
-  =====> src/ui/Workspace-AD-DebugView.tsx :
-// src/ui/Workspace-AD-DebugView.tsx
-
-import type { Workspace } from "../model/workspace";
-import type { Tab } from "../model/tab";
-
-import { openPanel, detachPanel } from "../model/workspace.panels";
-import { closeTab } from "../model/workspace";
-
-type Props = {
-  workspace: Workspace;
-  setWorkspace: (ws: Workspace) => void;
-};
-
-export function WorkspaceADDebugView({ workspace, setWorkspace }: Props) {
-  return (
-    <div style={{ fontFamily: "monospace", padding: 12 }}>
-      <h3>Workspace – AD Debug View</h3>
-
-      {/* Actions explicites de test */}
-      <div style={{ marginBottom: 12 }}>
-        <button
-          onClick={() =>
-            setWorkspace(
-              openPanel(workspace, "Chart", { strategyId: "S1" })
-            )
-          }
-        >
-          Open Chart S1
-        </button>{" "}
-        <button
-          onClick={() =>
-            setWorkspace(
-              openPanel(workspace, "Run", { strategyId: "S2" })
-            )
-          }
-        >
-          Open Run S2
-        </button>
-      </div>
-
-      {/* Projection brute du Workspace */}
-      {Object.values(workspace.containers).map(container => (
-        <div
-          key={container.id}
-          style={{
-            border: "1px solid #aaa",
-            marginBottom: 8,
-            padding: 8,
-          }}
-        >
-          <div>
-            <strong>
-              Container {container.id} | groupKey:{" "}
-              {container.groupKey.kind}
-              {container.groupKey.strategyId
-                ? `:${container.groupKey.strategyId}`
-                : ""}
-            </strong>
-          </div>
-
-          <ul>
-            {container.tabs.map(tab => (
-              <li key={tab.id}>
-                Tab {tab.id} ({tab.kind}
-                {tab.context.strategyId
-                  ? `, ${tab.context.strategyId}`
-                  : ""}
-                )
-                {" "}
-                <button
-                  onClick={() =>
-                    handleDetach(tab, workspace, setWorkspace)
-                  }
-                >
-                  detach
-                </button>{" "}
-                <button
-                  onClick={() =>
-                    setWorkspace(closeTab(workspace, tab.id))
-                  }
-                >
-                  x
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      ))}
-    </div>
-  );
-}
-
-/* ======================================================
- * Helper local — aucun métier ici
- * ==================================================== */
-
-function handleDetach(
-  tab: Tab,
-  workspace: Workspace,
-  setWorkspace: (ws: Workspace) => void
-) {
-  const { workspace: next } = detachPanel(workspace, tab);
-  setWorkspace(next);
-}
-=====> src/ui/Workspace-AD-View.tsx :
-import type { Workspace } from "../model/workspace";
-import { openPanel, detachPanel } from "../model/workspace.panels";
-import { closeTab } from "../model/workspace";
-
-import { ContainerView } from "./ContainerView";
-
-type Props = {
-  workspace: Workspace;
-  setWorkspace: (ws: Workspace) => void;
-};
-
-export function WorkspaceView({ workspace, setWorkspace }: Props) {
-  return (
-    <div>
-      <h2>Workspace</h2>
-
-      <button
-        onClick={() =>
-          setWorkspace(
-            openPanel(workspace, "Chart", { strategyId: "S1" })
+    /* Suppression visuelle d’un container (Mosaic ✕)
+       ⚠️ PAS un detach métier */
+    const handleRemove = (containerId: string) => {
+      onStateChange(s => ({
+        ...s,
+        layout: pruneLayout(
+          s.layout,
+          new Set(
+            Object.keys(s.workspace.containers)
+              .filter(id => id !== containerId)
           )
-        }
-      >
-        Open Chart S1
-      </button>
-
-      <button
-        onClick={() =>
-          setWorkspace(
-            openPanel(workspace, "Run", { strategyId: "S2" })
-          )
-        }
-      >
-        Open Run S2
-      </button>
-
-      <hr />
-
-      {Object.values(workspace.containers).map(container => (
-        <ContainerView
-          key={container.id}
-          container={container}
-          onCloseTab={(tabId) =>
-            setWorkspace(closeTab(workspace, tabId))
-          }
-          onDetachTab={(tab) => {
-            const { workspace: ws2 } = detachPanel(workspace, tab);
-            setWorkspace(ws2);
-          }}
-        />
-      ))}
-    </div>
-  );
-}
-=====> src/ui/TabView.tsx :
-// src/ui/TabView.tsx
-import type { Tab } from "../model/tab";
-import type { ContainerId } from "../model/ids";
-
-export function TabView({
-  tab,
-  containerId,
-  onClose,
-  onDetach,
-}: {
-  tab: Tab;
-  containerId: ContainerId;
-  onClose: (tabId: string) => void;
-  onDetach: (tab: Tab) => void;
-}) {
-  return (
-    <div
-      style={{
-        display: "flex",
-        alignItems: "center",
-        gap: 6,
-        border: "1px solid #ccc",
-        padding: "4px 6px",
-      }}
-    >
-      {/* ✅ ZONE DRAG UNIQUEMENT */}
-      <div
-        draggable
-        onDragStart={(e) => {
-          e.dataTransfer.setData(
-            "application/x-mosaic-tab",
-            JSON.stringify({
-              tabId: tab.id,
-              sourceContainerId: containerId,
-            })
-          );
-          e.dataTransfer.effectAllowed = "move";
-        }}
-        style={{
-          flex: 1,
-          cursor: "grab",
-          userSelect: "none",
-        }}
-      >
-        Tab {tab.id}
-      </div>
-
-      {/* ACTIONS */}
-      <button aria-label="Detach tab" onClick={() => onDetach(tab)}>detach</button>
-      <button aria-label="Close tab" onClick={() => onClose(tab.id)}>×</button>
-    </div>
-  );
-}
-=====> src/ui/WorkspaceView.tsx :
-import { useState, type DragEvent } from "react";
-import type { Workspace } from "../model/workspace";
-import { closeTab } from "../model/workspace";
-import { handleTabDrop } from "../model/dnd";
-import { TabView } from "./TabView";
-import { detachPanel } from "../model/workspace.panels";
-
-/**
- * Props du WorkspaceView
- * - workspace : état métier courant
- * - onChange : callback unique pour appliquer une transition métier
- */
-type Props = {
-  workspace: Workspace;
-  onChange: (ws: Workspace) => void;
-};
-
-/**
- * MIME type utilisé pour le Drag & Drop des tabs
- * (évite les collisions avec d'autres DnD éventuels)
- */
-const MIME = "application/x-mosaic-tab";
-
-/**
- * Payload transporté pendant le drag d'un tab
- */
-type DragPayload = {
-  tabId: string;
-  sourceContainerId: string;
-};
-
-/**
- * Helper pour lire proprement le payload DnD
- */
-function readDragPayload(e: DragEvent): DragPayload | null {
-  const raw = e.dataTransfer.getData(MIME);
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw) as DragPayload;
-  } catch {
-    return null;
-  }
-}
-
-export function WorkspaceView({ workspace, onChange }: Props) {
-  // ✅ Hooks : uniquement ici, au niveau racine du composant
-  const [dragOverContainer, setDragOverContainer] =
-    useState<string | null>(null);
-
-  const containers = Object.values(workspace.containers);
-
-  return (
-    /**
-     * ===============================
-     * ZONE "OUTSIDE" GLOBALE
-     * ===============================
-     *
-     * - Drop ici = intention "DETACH"
-     * - Le modèle décidera :
-     *   - isolation (nouveau container)
-     *   - ou fermeture (fallback)
-     */
-    <div
-      style={{
-        display: "flex",
-        gap: 16,
-        padding: 16,
-        minHeight: 400,
-        background: "#f0f0f0",
-      }}
-      onDragOver={(e) => {
-        if (e.dataTransfer.types.includes(MIME)) {
-          e.preventDefault();
-          e.dataTransfer.dropEffect = "move";
-        }
-      }}
-      onDrop={(e) => {
-        const payload = readDragPayload(e);
-        if (!payload) return;
-
-        // 👉 MOVE TAB → OUTSIDE = DETACH
-        onChange(
-          handleTabDrop(workspace, payload.tabId, {
-            type: "outside",
-          })
+        ),
+      }));
+    };
+  
+    /* Rendu d’un tile */
+    const renderTile = (containerId: string, path: any) => {
+      const container: Container | undefined =
+        workspace.containers[containerId];
+  
+      if (!container) {
+        return (
+          <MosaicWindow<string> path={path} title={null}>
+            <div />
+          </MosaicWindow>
         );
-      }}
-    >
-      {containers.map((container) => (
-        /**
-         * ===============================
-         * CONTAINER (DROP ZONE "GROUPER")
-         * ===============================
-         *
-         * - Drop n'importe où dans le panel
-         *   = groupement dans ce container
-         */
-        <div
-          key={container.id}
-          style={{
-            border: "1px solid #ccc",
-            padding: 8,
-            minWidth: 240,
-            background:
-              dragOverContainer === container.id
-                ? "#e6f2ff"
-                : "#fafafa",
-          }}
-          onDragOver={(e) => {
-            if (e.dataTransfer.types.includes(MIME)) {
-              e.preventDefault();
-              e.dataTransfer.dropEffect = "move";
-            }
-          }}
-          onDragEnter={() => setDragOverContainer(container.id)}
-          onDrop={(e) => {
-            // ⚠️ Empêche le drop "outside" global
-            e.stopPropagation();
-            setDragOverContainer(null);
-
-            const payload = readDragPayload(e);
-            if (!payload) return;
-
-            // Optionnel : ignorer le drop sur le même container
-            if (payload.sourceContainerId === container.id) {
-              return;
-            }
-
-            onChange(
-              handleTabDrop(workspace, payload.tabId, {
-                type: "header",
-                containerId: container.id,
-              })
-            );
-          }}
-        >
-          {/* ===============================
-              HEADER DU CONTAINER (VISUEL)
-              =============================== */}
-          <div
-            style={{
-              padding: 6,
-              border: "1px dashed #bbb",
-              marginBottom: 8,
-              background: "#fff",
-            }}
-          >
-            <h3 style={{ margin: 0 }}>
-              Container {container.id}
-            </h3>
-          </div>
-
-          {/* ===============================
-              LISTE DES TABS
-              =============================== */}
-          {container.tabs.map((tab) => (
+      }
+  
+      return (
+        <MosaicWindow<string>
+          path={path}
+          onRemove={() => handleRemove(containerId)}
+          renderToolbar={(props) => (
             <div
-              key={tab.id}
+              className="my-toolbar"
               style={{
-                border: "1px solid #ddd",
-                padding: 6,
-                marginBottom: 8,
-                background: "#fff",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                width: "100%",
+                padding: "0 6px",
               }}
             >
-              {/* -------------------------------
-                  TAB (DRAG + CLOSE)
-                  -------------------------------
-                  - Drag = déplacement
-                  - ✕ = fermeture explicite
-               */}
-              <TabView
-                tab={tab}
-                containerId={container.id}
-                onClose={(tabId) =>
-                  onChange(closeTab(workspace, tabId))
-                }
-                onDetach={(tab) => {
-                  const { workspace: next } = detachPanel(workspace, tab);
-                  onChange(next);
-                }}
-              />
+              <span>{`Container ${containerId}`}</span>
+              {props.onRemove && (
+                <button onClick={props.onRemove}>×</button>
+              )}
             </div>
-          ))}
-        </div>
-      ))}
-    </div>
-  );
-}
-=====> src/ui/__tests__/Workspace.detach.spec.tsx :
-import { render, screen, fireEvent } from "@testing-library/react";
-import { describe, it, expect } from "vitest";
-import { useState } from "react";
-import type { Workspace } from "../../model/workspace";
-import type { Container } from "../../model/container";
-import type { Tab } from "../../model/tab";
-import { WorkspaceView } from "../WorkspaceView";
-
-function initialWorkspace(): Workspace {
-  const A: Tab = { id: "A", kind: "test" };
-  const B: Tab = { id: "B", kind: "test" };
-  const C1: Container = { id: "C1", tabs: [A, B] };
-  return { containers: { C1 } };
-}
-
-function TestHost() {
-  const [workspace, setWorkspace] =
-    useState<Workspace>(initialWorkspace());
-
-  return (
-    <WorkspaceView
-      workspace={workspace}
-      onChange={setWorkspace}
-    />
-  );
-}
-
-describe("WorkspaceView — Detach (UI)", () => {
-  it("retire le tab du workspace quand on clique sur detach", () => {
-    render(<TestHost />);
-
-    // Précondition
-    expect(screen.getByText("Tab A")).toBeTruthy();
-    expect(screen.getByText("Tab B")).toBeTruthy();
-
-    // Action : click sur le bouton DETACH du tab A
-    const detachButtons = screen.getAllByLabelText("Detach tab");
-    fireEvent.click(detachButtons[0]);
-
-    // Résultat
-    expect(screen.queryByText("Tab A")).toBeNull();
-    expect(screen.getByText("Tab B")).toBeTruthy();
-  });
-});
-=====> src/ui/__tests__/Workspace.isolate.spec.tsx :
-import { describe, it, expect } from "vitest";
-import { render, fireEvent } from "@testing-library/react";
-import { WorkspaceView } from "../WorkspaceView";
-import type { Workspace } from "../../model/workspace";
-import type { Container } from "../../model/container";
-import type { Tab } from "../../model/tab";
-
-/* Helpers */
-function tab(id: string): Tab {
-  return { id, kind: "test" };
-}
-function container(id: string, tabs: Tab[]): Container {
-  return { id, tabs };
-}
-function workspace(containers: Container[]): Workspace {
-  return {
-    containers: Object.fromEntries(
-      containers.map(c => [c.id, c])
-    ),
-  };
-}
-
-it("DnD outside isole le tab si le container a > 1 tab", () => {
-    const ws = workspace([
-      container("C1", [tab("A"), tab("B")]),
-    ]);
+          )}
+        >
+          <ContainerView
+            container={container}
+            hoveredContainerId={hoveredContainerId} 
+              
+            /* =============================
+             * SELECT TAB (CU)
+             * ============================= */
+            onSelectTab={(containerId, tabId) =>
+              onStateChange((s) => {
+                const container = s.workspace.containers[containerId];
+                const nextContainer = activateTab(container, tabId);
   
-    let nextWs: Workspace | undefined;
+                return {
+                  ...s,
+                  workspace: {
+                    ...s.workspace,
+                    containers: {
+                      ...s.workspace.containers,
+                      [containerId]: nextContainer,
+                    },
+                  },
+                };
+              })
+            }
   
-    render(
-      <WorkspaceView
-        workspace={ws}
-        onChange={(w) => (nextWs = w)}
-      />
-    );
+            /* =============================
+             * CLOSE TAB (CU)
+             * ============================= */
+            onCloseTab={(tabId) =>
+              onStateChange((s) => {
+                const nextWorkspace = closeTab(s.workspace, tabId);
+                const validIds = new Set(Object.keys(nextWorkspace.containers));
   
-    // 👉 Simule un drop "outside" sur le tab A
-    fireEvent.drop(
-      document.querySelector("[style*='background: rgb(240, 240, 240)']")!,
-      {
-        dataTransfer: {
-          getData: () =>
-            JSON.stringify({
-              tabId: "A",
-              sourceContainerId: "C1",
-            }),
-          types: ["application/x-mosaic-tab"],
-        },
-      }
-    );
+                return {
+                  ...s,
+                  workspace: nextWorkspace,
+                  layout: pruneLayout(s.layout, validIds),
+                };
+              })
+            }
   
-    expect(nextWs).toBeDefined();
+            /* =============================
+             * DETACH TAB (CU)
+             * ============================= */
+            onDetachTab={(tab) =>
+              onStateChange((s) => {
+                const { workspace: nextWs } = detachPanel(s.workspace, tab);
+                const validIds = new Set(Object.keys(nextWs.containers));
   
-    const containers = Object.values(nextWs!.containers);
-  
-    // ➜ un container de plus
-    expect(containers.length).toBe(2);
-  
-    const cWithA = containers.find(c =>
-      c.tabs.some(t => t.id === "A")
-    )!;
-    const cWithB = containers.find(c =>
-      c.tabs.some(t => t.id === "B")
-    )!;
-  
-    expect(cWithA.tabs.map(t => t.id)).toEqual(["A"]);
-    expect(cWithB.tabs.map(t => t.id)).toEqual(["B"]);
-  });
-
-  it("DnD outside est un no-op si le container a 1 seul tab", () => {
-    const ws = workspace([
-      container("C1", [tab("A")]),
-    ]);
-  
-    let nextWs: Workspace | undefined;
-  
-    render(
-      <WorkspaceView
-        workspace={ws}
-        onChange={(w) => (nextWs = w)}
-      />
-    );
-  
-    // 👉 drop outside sur A
-    fireEvent.drop(
-      document.querySelector("[style*='background: rgb(240, 240, 240)']")!,
-      {
-        dataTransfer: {
-          getData: () =>
-            JSON.stringify({
-              tabId: "A",
-              sourceContainerId: "C1",
-            }),
-          types: ["application/x-mosaic-tab"],
-        },
-      }
-    );
-  
-    // ➜ aucune transition
-    expect(nextWs).toBeUndefined();
-  });
-  
-  =====> src/ui/__tests__/Workspace.semantic.spec.tsx :
-=====> src/ui/__tests__/Workspace.close.spec.tsx :
-import { describe, it, expect } from "vitest";
-import { render, waitFor, screen, fireEvent } from "@testing-library/react";
-import { useState } from "react";
-import { WorkspaceView } from "../WorkspaceView";
-import type { Workspace } from "../../model/workspace";
-import type { Container } from "../../model/container";
-import type { Tab } from "../../model/tab";
-
-/* ======================================================
- * Helpers
- * ====================================================== */
-
-function tab(id: string): Tab {
-    return { id, kind: "test" };
-}
-
-function container(id: string, tabs: Tab[]): Container {
-    return { id, tabs };
-}
-
-function workspace(containers: Container[]): Workspace {
-    return {
-        containers: Object.fromEntries(
-            containers.map(c => [c.id, c])
-        ),
-    };
-}
-
-/* ======================================================
- * Test Host (STATEFUL)
- * ====================================================== */
-
-function TestHost({ initial }: { initial: Workspace }) {
-    const [ws, setWs] = useState(initial);
-    return (
-        <WorkspaceView
-            workspace={ws}
-            onChange={setWs}
-        />
-    );
-}
-
-/* ======================================================
- * Tests
- * ====================================================== */
-
-describe("WorkspaceView — Close (UI)", () => {
-    it("retire le tab du workspace quand on clique sur ✕", () => {
-        render(
-            <TestHost
-                initial={workspace([
-                    container("C1", [tab("A"), tab("B")]),
-                ])}
-            />
-        );
-
-        // Précondition
-        expect(screen.getByText("Tab A")).toBeDefined();
-        expect(screen.getByText("Tab B")).toBeDefined();
-
-        // Action
-        const closeButtons = screen.getAllByLabelText("Close tab");
-        fireEvent.click(closeButtons[0]);
-
-        // Post-condition DOM
-        expect(screen.queryByText("Tab A")).toBeNull();
-        expect(screen.getByText("Tab B")).toBeDefined();
-    });
-
-    it.skip("retire le dernier tab quand on clique sur ✕", async () => {
-        render(
-          <TestHost
-            initial={workspace([
-              container("C1", [tab("A")]),
-            ])}
+                return {
+                  ...s,
+                  workspace: nextWs,
+                  layout: pruneLayout(s.layout, validIds),
+                };
+              })
+            }
           />
-        );
-      
-        fireEvent.click(
-          screen.getAllByLabelText("Close tab")[0]
-        );
-      
-        await waitFor(() => {
-          expect(screen.queryByText("Tab A")).toBeNull();
-        });
-      });
-      
-});
-=====> src/ui/__tests__/Workspace.render.spec.tsx :
-=====> src/ui/WorkspaceMosaicView.tsx :
-// src/ui/WorkspaceMosaicView.tsx
-
-import { useState, useEffect } from "react";
-import {
-  Mosaic,
-  MosaicWindow,
-  type MosaicNode,
-} from "react-mosaic-component";
-
-import type { Workspace } from "../model/workspace";
-import type { Container } from "../model/container";
-import { ContainerView } from "./ContainerView";
-
-/* ======================================================
- * Types
- * ====================================================== */
-
-// Phase 0 : 1 container métier = 1 node Mosaic
-type MosaicLayout = MosaicNode<string>;
-
-/* ======================================================
- * Utils — layout minimal
- * ====================================================== */
-
-/**
- * Génère un layout Mosaic minimal à partir des containers.
- * - 0 container → null
- * - 1 container → leaf
- * - n containers → split linéaire (ordre arbitraire)
- *
- * ⚠️ Aucune promesse de direction / position
- */
-function buildInitialLayout(containerIds: string[]): MosaicLayout | null {
-  if (containerIds.length === 0) {
-    return null;
-  }
-
-  if (containerIds.length === 1) {
-    return containerIds[0];
-  }
-
-  return containerIds.slice(1).reduce<MosaicLayout>(
-    (acc, id) => ({
-      direction: "row",
-      first: acc,
-      second: id,
-    }),
-    containerIds[0]
-  );
-}
-
-/* ======================================================
- * Component
- * ====================================================== */
-
-export function WorkspaceMosaicView({
-  workspace,
-  onWorkspaceChange,
-}: {
-  workspace: Workspace;
-  onWorkspaceChange: (next: Workspace) => void;
-}) {
-  const containerIds = Object.keys(workspace.containers);
-
-  /**
-   * UI state pur : layout Mosaic
-   * ⚠️ DÉRIVÉ du workspace, jamais source de vérité
-   */
-  const [layout, setLayout] = useState<MosaicLayout | null>(() =>
-    buildInitialLayout(containerIds)
-  );
-
-  /**
-   * 🔒 Règle Phase Mosaic 0
-   * Si les containers changent, on reconstruit le layout.
-   * (brutal mais sain à ce stade)
-   */
-  useEffect(() => {
-    setLayout(buildInitialLayout(containerIds));
-  }, [containerIds.join("|")]);
-
-  /**
-   * onChange(layout)
-   * → géométrie UNIQUEMENT
-   * → aucun impact métier
-   */
-  const handleLayoutChange = (nextLayout: MosaicLayout | null) => {
-    setLayout(nextLayout);
-  };
-
-  /**
-   * onRemove(containerId)
-   * → fermeture visuelle
-   * → PAS un detach
-   */
-  const handleRemove = (containerId: string) => {
-    if (!workspace.containers[containerId]) return;
-
-    onWorkspaceChange({
-      ...workspace,
-      containers: Object.fromEntries(
-        Object.entries(workspace.containers).filter(
-          ([id]) => id !== containerId
-        )
-      ),
-    });
-  };
-
-  /**
-   * Rendu d’un container
-   * Mosaic ne connaît QUE les containers
-   */
-  const renderTile = (containerId: string, path: any) => {
-    const container: Container | undefined =
-      workspace.containers[containerId];
-
-    if (!container) {
-      return null;
-    }
-
+        </MosaicWindow>
+      );
+    };
+  
+    const validIds = new Set(Object.keys(workspace.containers));
+    const effectiveLayout = pruneLayout(layout, validIds);
+  
     return (
-      <MosaicWindow<string>
-        path={path}
-        title={`Container ${containerId}`}
-        onRemove={() => handleRemove(containerId)}
-      >
-        <ContainerView
-          workspace={workspace}
-          container={container}
-          onWorkspaceChange={onWorkspaceChange}
-        />
-      </MosaicWindow>
+      <Mosaic<string>
+        value={effectiveLayout}
+        onChange={handleLayoutChange}
+        renderTile={renderTile}
+      />
     );
-  };
-
-  return (
-    <Mosaic<string>
-      value={layout}
-      onChange={handleLayoutChange}
-      renderTile={renderTile}
-    />
-  );
-}
-=====> src/ui/ContainerView.tsx :
-// src/ui/ContainerView.tsx
-
-import { useState, type DragEvent } from "react";
+  }
+  =====> src/ui/ContainerView.tsx :
+import { useDroppable, useDndContext } from "@dnd-kit/core";
 import type { Container } from "../model/container";
-import type { Workspace } from "../model/workspace";
-import { closeTab } from "../model/workspace";
-import { handleTabDrop } from "../model/dnd";
-import { detachPanel } from "../model/workspace.panels";
+import type { Tab } from "../model/tab";
+import { ContainerHeaderView } from "./ContainerHeaderView";
 import { TabView } from "./TabView";
 
-/**
- * MIME type utilisé pour le Drag & Drop des tabs
- */
-const MIME = "application/x-mosaic-tab";
-
-/**
- * Payload transporté pendant le drag d'un tab
- */
-type DragPayload = {
-  tabId: string;
-  sourceContainerId: string;
-};
-
-/**
- * Helper pour lire le payload DnD
- */
-function readDragPayload(e: DragEvent): DragPayload | null {
-  const raw = e.dataTransfer.getData(MIME);
-  if (!raw) return null;
-  try {
-    return JSON.parse(raw) as DragPayload;
-  } catch {
-    return null;
-  }
-}
-
 export function ContainerView({
-  workspace,
   container,
-  onWorkspaceChange,
-}: {
-  workspace: Workspace;
-  container: Container;
-  onWorkspaceChange: (next: Workspace) => void;
-}) {
-  const [dragOver, setDragOver] = useState(false);
+  hoveredContainerId,
+  onSelectTab,
+  onCloseTab,
+  onDetachTab,
+}: Props) {
+  const { setNodeRef } = useDroppable({
+    id: `container-${container.id}`,
+    data: {
+      type: "container",
+      containerId: container.id,
+    },
+  });
+
+  const { active } = useDndContext();
+  const isDraggingTab =
+    active?.data.current?.type === "tab";
+
+  const isHovered = hoveredContainerId === container.id;
+
+  const activeTab = container.tabs[container.tabs.length - 1];
 
   return (
     <div
-      className="container-panel"
+      ref={setNodeRef}
+      className="container-root"
       style={{
-        border: "1px solid #ccc",
-        padding: 8,
-        minWidth: 240,
-        background: dragOver ? "#e6f2ff" : "#fafafa",
+        display: "flex",
+        flexDirection: "column",
         height: "100%",
-        boxSizing: "border-box",
-      }}
-      onDragOver={(e) => {
-        if (e.dataTransfer.types.includes(MIME)) {
-          e.preventDefault();
-          e.dataTransfer.dropEffect = "move";
-        }
-      }}
-      onDragEnter={() => setDragOver(true)}
-      onDragLeave={() => setDragOver(false)}
-      onDrop={(e) => {
-        // ⚠️ Empêche le drop "outside" global
-        e.stopPropagation();
-        setDragOver(false);
 
-        const payload = readDragPayload(e);
-        if (!payload) return;
+        background: isDraggingTab ? "#e6f2ff" : "#fafafa",
+        outline: isDraggingTab
+          ? isHovered
+            ? "2px solid #2563eb"     // 🔵 container survolé
+            : "2px dashed #3b82f6"   // 🔷 droppable
+          : "none",
 
-        // ignorer le drop sur le même container
-        if (payload.sourceContainerId === container.id) {
-          return;
-        }
-
-        onWorkspaceChange(
-          handleTabDrop(workspace, payload.tabId, {
-            type: "header",
-            containerId: container.id,
-          })
-        );
+        outlineOffset: "-2px",
+        transition: "background 0.15s, outline 0.15s",
       }}
     >
-      {/* ===============================
-          HEADER DU CONTAINER
-         =============================== */}
-      <div
-        style={{
-          padding: 6,
-          border: "1px dashed #bbb",
-          marginBottom: 8,
-          background: "#fff",
-        }}
-      >
-        <h3 style={{ margin: 0 }}>Container {container.id}</h3>
-      </div>
+      <ContainerHeaderView
+        tabs={container.tabs}
+        activeTab={activeTab}
+        containerId={container.id}
+        onSelectTab={(tabId) =>
+          onSelectTab(container.id, tabId)
+        }
+        onDetachTab={onDetachTab}
+        onCloseTab={onCloseTab}
+      />
 
-      {/* ===============================
-          LISTE DES TABS
-         =============================== */}
-      {container.tabs.map((tab) => (
-        <div
-          key={tab.id}
-          style={{
-            border: "1px solid #ddd",
-            padding: 6,
-            marginBottom: 8,
-            background: "#fff",
-          }}
-        >
-          <TabView
-            tab={tab}
-            containerId={container.id}
-            onClose={(tabId) =>
-              onWorkspaceChange(closeTab(workspace, tabId))
-            }
-            onDetach={(tab) => {
-              const { workspace: next } = detachPanel(workspace, tab);
-              onWorkspaceChange(next);
-            }}
-          />
-        </div>
-      ))}
+      <div className="container-panel" style={{ flex: 1 }}>
+        <TabView tab={activeTab} />
+      </div>
     </div>
   );
 }
-=====> src/App.tsx :
-import { useState } from "react";
-import type { Workspace } from "./model/workspace";
-import type { Container } from "./model/container";
-import type { Tab } from "./model/tab";
-import { WorkspaceMosaicView } from "./ui/WorkspaceMosaicView";
+=====> src/ui/WorkspaceDnDProvider.tsx :
+import {
+  DndContext,
+  DragOverlay,
+  type DragEndEvent,
+  type DragMoveEvent,
+} from "@dnd-kit/core";
+import { useState, type ReactNode } from "react";
+import type { Workspace } from "../model/workspace";
+import { moveTab } from "../model/workspace.move";
 
-function initialWorkspace(): Workspace {
-  const A: Tab = { id: "A", kind: "test" };
-  const B: Tab = { id: "B", kind: "test" };
-  const C: Tab = { id: "C", kind: "test" };
+type Props = {
+  state: { workspace: Workspace };
+  onStateChange: (updater: (s: any) => any) => void;
+  children: (hoveredContainerId: string | null) => ReactNode;
+};
 
-  const c1: Container = { id: "C1", tabs: [A, B] };
-  const c2: Container = { id: "C2", tabs: [C] };
+export function WorkspaceDnDProvider({
+  state,
+  onStateChange,
+  children,
+}: Props) {
+  const [hoveredContainerId, setHoveredContainerId] =
+    useState<string | null>(null);
 
-  return {
-    containers: {
-      C1: c1,
-      C2: c2,
-    },
-  };
-}
+  function handleDragMove(event: DragMoveEvent) {
+    const overData = event.over?.data.current;
 
-export default function App() {
-  const [workspace, setWorkspace] =
-    useState<Workspace>(initialWorkspace);
+    if (overData?.type === "container") {
+      setHoveredContainerId(overData.containerId);
+    } else {
+      setHoveredContainerId(null);
+    }
+  }
+
+  function handleDragEnd(event: DragEndEvent) {
+    setHoveredContainerId(null);
+
+    const { active, over } = event;
+    if (!over) return;
+
+    const activeData = active.data.current;
+    const overData = over.data.current;
+
+    if (
+      activeData?.type !== "tab" ||
+      overData?.type !== "container"
+    ) {
+      return;
+    }
+
+    const tabId = activeData.tabId;
+    const fromContainerId = activeData.fromContainerId;
+    const toContainerId = overData.containerId;
+
+    if (fromContainerId === toContainerId) return;
+
+    onStateChange((s: any) => ({
+      ...s,
+      workspace: moveTab(s.workspace, tabId, toContainerId),
+    }));
+  }
 
   return (
-    <div style={{ padding: 16 }}>
-      <h1>Mosaic 2</h1>
+    <DndContext
+      onDragMove={handleDragMove}
+      onDragEnd={handleDragEnd}
+      onDragCancel={() => setHoveredContainerId(null)}
+    >
+      {children(hoveredContainerId)}
 
-      <WorkspaceMosaicView
-        workspace={workspace}
-        onChange={setWorkspace}
-      />
+      <DragOverlay dropAnimation={null}>
+        <div
+          className="tab tab--active tab--overlay"
+          style={{
+            pointerEvents: "none", // 🔥 CRUCIAL
+            padding: "4px 8px",
+            background: "white",
+            border: "1px solid #3b82f6",
+            borderRadius: 4,
+            boxShadow: "0 6px 18px rgba(0,0,0,0.2)",
+            cursor: "grabbing",
+          }}
+        >
+          Tab
+        </div>
+      </DragOverlay>
+    </DndContext>
+  );
+}
+=====> src/ui/mosaicLayout.ts :
+import type { MosaicNode, MosaicParent } from "react-mosaic-component";
+
+export function splitLayoutAtPath(
+  layout: MosaicNode<string> | null,
+  targetId: string,
+  newId: string,
+  direction: "row" | "column",
+  insert: "before" | "after"
+): MosaicNode<string> {
+  if (!layout) return layout;
+
+  // remplace la 1ère occurrence de targetId dans l'arbre
+  const replace = (node: MosaicNode<string>): MosaicNode<string> => {
+    if (node === targetId) {
+      const first = insert === "before" ? newId : targetId;
+      const second = insert === "before" ? targetId : newId;
+      return { direction, first, second } as MosaicParent<string>;
+    }
+    if (typeof node === "string") return node;
+
+    return {
+      ...node,
+      first: replace(node.first),
+      second: replace(node.second),
+    } as MosaicParent<string>;
+  };
+
+  return replace(layout);
+}
+=====> src/ui/ContainerHeaderView.tsx :
+import { useRef } from "react";
+import type { Tab } from "../model/tab";
+import { XorTab } from "./XorTab";
+
+type Props = {
+  tabs: Tab[];
+  activeTab: Tab;
+  containerId: string;
+  onSelectTab: (tabId: string) => void;
+  onDetachTab: (tab: Tab) => void;
+  onCloseTab: (tabId: string) => void;
+};
+
+export function ContainerHeaderView({
+  tabs,
+  activeTab,
+  containerId,
+  onSelectTab,
+  onDetachTab,
+  onCloseTab,
+}: Props) {
+
+  // ✅ ORDRE VISUEL STABLE (snapshot initial)
+  const orderedTabsRef = useRef<string[]>(
+    tabs.map(t => t.id)
+  );
+
+  // 🔁 synchronise si nouveaux tabs (open / close)
+  orderedTabsRef.current = orderedTabsRef.current.filter(id =>
+    tabs.some(t => t.id === id)
+  );
+  tabs.forEach(t => {
+    if (!orderedTabsRef.current.includes(t.id)) {
+      orderedTabsRef.current.push(t.id);
+    }
+  });
+
+  const orderedTabs = orderedTabsRef.current
+    .map(id => tabs.find(t => t.id === id)!)
+    .filter(Boolean);
+
+  return (
+    <div className="container-header">
+      <div className="tablist">
+        {orderedTabs.map((tab) => (
+          <XorTab
+            key={tab.id}
+            tabId={tab.id}
+            containerId={containerId}
+            isActive={tab.id === activeTab.id}
+            onSelect={() => onSelectTab(tab.id)}
+          />
+        ))}
+      </div>
+
+      <div className="tab-actions">
+        <button onClick={() => onDetachTab(activeTab)}>detach</button>
+        <button onClick={() => onCloseTab(activeTab.id)}>×</button>
+      </div>
     </div>
   );
 }
-=====> src/main.tsx :
-import React from "react";
-import ReactDOM from "react-dom/client";
-import App from "./App";
+=====> src/ui/XorTab.tsx :
+import { useDraggable } from "@dnd-kit/core";
 
-ReactDOM.createRoot(
-  document.getElementById("root")!
-).render(
-  <React.StrictMode>
-    <App />
-  </React.StrictMode>
-);=====> src/setupTests.ts :
-import '@testing-library/jest-dom/vitest';
+type Props = {
+  tabId: string;
+  containerId: string;
+  isActive: boolean;
+  onSelect: () => void;
+};
+
+export function XorTab({ tabId, containerId, isActive, onSelect }: Props) {
+  const { setNodeRef, listeners, attributes, transform } = useDraggable({
+    id: `tab-${tabId}`,
+    data: { type: "tab", tabId, fromContainerId: containerId },
+    disabled: !isActive,                 // ✅ XOR robuste
+    activationConstraint: { distance: 5 } // ✅ évite les micro-drags
+  });
+
+  return (
+    <div
+      ref={setNodeRef}
+      className={`tab ${isActive ? "tab--active" : ""}`}
+      // ✅ click toujours OK ; si actif => ça ne change rien, si inactif => select
+      onClick={() => {
+        if (!isActive) onSelect();
+      }}
+      // ✅ listeners/attributes uniquement utiles si actif (car disabled sinon)
+      {...listeners}
+      {...attributes}
+      style={{
+        cursor: isActive ? "grab" : "pointer",
+        transform: transform
+          ? `translate3d(${transform.x}px, ${transform.y}px, 0)`
+          : undefined,
+      }}
+    >
+      {tabId}
+    </div>
+  );
+}
 
