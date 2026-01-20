@@ -7,34 +7,49 @@ import type { Workspace } from "./model/workspace";
 import type { Container } from "./model/container";
 import type { Tab } from "./model/tab";
 
-import { WorkspaceMosaicView, buildInitialLayout } from "./ui/WorkspaceMosaicView";
+import {
+  WorkspaceMosaicView,
+  buildInitialLayout,
+  type WorkspaceState,
+} from "./ui/WorkspaceMosaicView";
+
 import { WorkspaceDnDProvider } from "./ui/WorkspaceDnDProvider";
 
+/* ======================================================
+ * Types
+ * ====================================================== */
 type Layout = MosaicNode<string>;
 
-type AppState = {
-  workspace: Workspace;
-  layout: Layout | null;
-};
-
+/* ======================================================
+ * Initial workspace
+ * ====================================================== */
 function initialWorkspace(): Workspace {
   const A: Tab = { id: "A", kind: "test" };
   const B: Tab = { id: "B", kind: "test" };
   const C: Tab = { id: "C", kind: "test" };
+  const D: Tab = { id: "D", kind: "test" };
+  const E: Tab = { id: "E", kind: "test" };
+  const F: Tab = { id: "F", kind: "test" };
+  const G: Tab = { id: "G", kind: "test" };
 
-  const c1: Container = { id: "C1", tabs: [A, B] };
-  const c2: Container = { id: "C2", tabs: [C] };
+  const c1: Container = { id: "C1", tabs: [A, B, C] };
+  const c2: Container = { id: "C2", tabs: [D, E, F] };
+  const c3: Container = { id: "C3", tabs: [G] };
 
   return {
     containers: {
       C1: c1,
       C2: c2,
+      C3: c3,
     },
   };
 }
 
+/* ======================================================
+ * App
+ * ====================================================== */
 export default function App() {
-  const [state, setState] = useState<AppState>(() => {
+  const [state, setState] = useState<WorkspaceState>(() => {
     const workspace = initialWorkspace();
     const containerIds = Object.keys(workspace.containers).sort();
     const layout = buildInitialLayout(containerIds);
@@ -46,6 +61,12 @@ export default function App() {
     (window as any).__workspace = state.workspace;
   }
 
+  const onStateChange = (
+    updater: (s: WorkspaceState) => WorkspaceState
+  ) => {
+    setState(updater);
+  };
+
   return (
     <div
       style={{
@@ -54,8 +75,17 @@ export default function App() {
         padding: 12,
       }}
     >
-      <WorkspaceDnDProvider state={state} onStateChange={setState}>
-        <WorkspaceMosaicView state={state} onStateChange={setState} />
+      <WorkspaceDnDProvider
+        state={state}
+        onStateChange={onStateChange}
+      >
+        {(hoveredContainerId) => (
+          <WorkspaceMosaicView
+            state={state}
+            onStateChange={onStateChange}
+            hoveredContainerId={hoveredContainerId}
+          />
+        )}
       </WorkspaceDnDProvider>
     </div>
   );

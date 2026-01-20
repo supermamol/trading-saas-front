@@ -1,3 +1,4 @@
+import { useRef } from "react";
 import type { Tab } from "../model/tab";
 import { XorTab } from "./XorTab";
 
@@ -18,10 +19,30 @@ export function ContainerHeaderView({
   onDetachTab,
   onCloseTab,
 }: Props) {
+
+  // ✅ ORDRE VISUEL STABLE (snapshot initial)
+  const orderedTabsRef = useRef<string[]>(
+    tabs.map(t => t.id)
+  );
+
+  // 🔁 synchronise si nouveaux tabs (open / close)
+  orderedTabsRef.current = orderedTabsRef.current.filter(id =>
+    tabs.some(t => t.id === id)
+  );
+  tabs.forEach(t => {
+    if (!orderedTabsRef.current.includes(t.id)) {
+      orderedTabsRef.current.push(t.id);
+    }
+  });
+
+  const orderedTabs = orderedTabsRef.current
+    .map(id => tabs.find(t => t.id === id)!)
+    .filter(Boolean);
+
   return (
     <div className="container-header">
       <div className="tablist">
-        {tabs.map((tab) => (
+        {orderedTabs.map((tab) => (
           <XorTab
             key={tab.id}
             tabId={tab.id}

@@ -1,12 +1,18 @@
-import { DndContext, type DragEndEvent } from "@dnd-kit/core";
-import type { ReactNode } from "react";
+import {
+  DndContext,
+  DragOverlay,
+  pointerWithin,
+  type DragEndEvent,
+  type DragMoveEvent,
+} from "@dnd-kit/core";
+import { useState, type ReactNode } from "react";
 import type { Workspace } from "../model/workspace";
 import { moveTab } from "../model/workspace.move";
 
 type Props = {
   state: { workspace: Workspace };
   onStateChange: (updater: (s: any) => any) => void;
-  children: ReactNode;
+  children: (hoveredContainerId: string | null) => ReactNode;
 };
 
 export function WorkspaceDnDProvider({
@@ -14,7 +20,22 @@ export function WorkspaceDnDProvider({
   onStateChange,
   children,
 }: Props) {
+  const [hoveredContainerId, setHoveredContainerId] =
+    useState<string | null>(null);
+
+  function handleDragMove(event: DragMoveEvent) {
+    const overData = event.over?.data.current;
+
+    if (overData?.type === "container") {
+      setHoveredContainerId(overData.containerId);
+    } else {
+      setHoveredContainerId(null);
+    }
+  }
+
   function handleDragEnd(event: DragEndEvent) {
+    setHoveredContainerId(null);
+
     const { active, over } = event;
     if (!over) return;
 
@@ -41,8 +62,30 @@ export function WorkspaceDnDProvider({
   }
 
   return (
-    <DndContext onDragEnd={handleDragEnd}>
-      {children}
+    <DndContext
+      collisionDetection={pointerWithin}   // 🔥 FIX MANQUANT
+      onDragMove={handleDragMove}
+      onDragEnd={handleDragEnd}
+      onDragCancel={() => setHoveredContainerId(null)}
+    >
+      {children(hoveredContainerId)}
+
+      <DragOverlay dropAnimation={null}>
+        <div
+          className="tab tab--active tab--overlay"
+          style={{
+            pointerEvents: "none",
+            padding: "4px 8px",
+            background: "white",
+            border: "1px solid #3b82f6",
+            borderRadius: 4,
+            boxShadow: "0 6px 18px rgba(0,0,0,0.2)",
+            cursor: "grabbing",
+          }}
+        >
+          Tab
+        </div>
+      </DragOverlay>
     </DndContext>
   );
 }

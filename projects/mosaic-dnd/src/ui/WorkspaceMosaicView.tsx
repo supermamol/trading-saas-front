@@ -24,8 +24,9 @@ import {
   type Props = {
     state: WorkspaceState;
     onStateChange: (updater: (s: WorkspaceState) => WorkspaceState) => void;
+    hoveredContainerId: string | null; // 👈 AJOUT
   };
-  
+    
   /* ======================================================
    * Utils
    * ====================================================== */
@@ -69,6 +70,7 @@ import {
   export function WorkspaceMosaicView({
     state,
     onStateChange,
+    hoveredContainerId,
   }: Props) {
     const { workspace, layout } = state;
   
@@ -129,7 +131,8 @@ import {
         >
           <ContainerView
             container={container}
-  
+            hoveredContainerId={hoveredContainerId} 
+              
             /* =============================
              * SELECT TAB (CU)
              * ============================= */

@@ -1,4 +1,4 @@
-import { useDroppable } from "@dnd-kit/core";
+import { useDroppable, useDndContext } from "@dnd-kit/core";
 import type { Container } from "../model/container";
 import type { Tab } from "../model/tab";
 import { ContainerHeaderView } from "./ContainerHeaderView";
@@ -6,6 +6,7 @@ import { TabView } from "./TabView";
 
 type Props = {
   container: Container;
+  hoveredContainerId: string | null;
   onSelectTab: (containerId: string, tabId: string) => void;
   onCloseTab: (tabId: string) => void;
   onDetachTab: (tab: Tab) => void;
@@ -13,17 +14,24 @@ type Props = {
 
 export function ContainerView({
   container,
+  hoveredContainerId,
   onSelectTab,
   onCloseTab,
   onDetachTab,
 }: Props) {
-  const { setNodeRef, isOver } = useDroppable({
+  const { setNodeRef } = useDroppable({
     id: `container-${container.id}`,
     data: {
       type: "container",
       containerId: container.id,
     },
   });
+
+  const { active } = useDndContext();
+  const isDraggingTab =
+    active?.data.current?.type === "tab";
+
+  const isHovered = hoveredContainerId === container.id;
 
   const activeTab = container.tabs[container.tabs.length - 1];
 
@@ -35,14 +43,20 @@ export function ContainerView({
         display: "flex",
         flexDirection: "column",
         height: "100%",
-        background: isOver ? "#e6f2ff" : "#fafafa",
+        background: isDraggingTab ? "#e6f2ff" : "#fafafa",
+        outline: isDraggingTab
+          ? isHovered
+            ? "2px solid #2563eb"     // 🔵 survol réel
+            : "2px dashed #3b82f6"   // 🔷 droppable
+          : "none",
+        outlineOffset: "-2px",
+        transition: "background 0.15s, outline 0.15s",
       }}
     >
-      {/* BARRE FUSIONNÉE */}
       <ContainerHeaderView
         tabs={container.tabs}
         activeTab={activeTab}
-        containerId={container.id}   // ✅ C’EST ICI QUE ÇA VIENT
+        containerId={container.id}
         onSelectTab={(tabId) =>
           onSelectTab(container.id, tabId)
         }
@@ -50,7 +64,6 @@ export function ContainerView({
         onCloseTab={onCloseTab}
       />
 
-      {/* CONTENU */}
       <div className="container-panel" style={{ flex: 1 }}>
         <TabView tab={activeTab} />
       </div>
