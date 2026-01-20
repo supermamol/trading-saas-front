@@ -168,3 +168,39 @@
   cursor: grab;
 }
 
+:root {
+  --tab-height: 24px;
+}
+
+.tab {
+  height: var(--tab-height);
+  min-width: var(--tab-height);
+  padding: 0 8px;
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  font-size: 13px;
+  line-height: 1;
+
+  border-radius: 4px;
+  box-sizing: border-box;
+}
+
+.container-header .tab-actions button {
+  height: var(--tab-height);
+  width: var(--tab-height);      /* carré → visuellement stable */
+
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+
+  padding: 0;
+  margin-left: 4px;
+
+  font-size: 13px;
+  line-height: 1;
+
+  border-radius: 4px;
+}

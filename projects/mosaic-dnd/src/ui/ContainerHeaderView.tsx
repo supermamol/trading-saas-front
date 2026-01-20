@@ -54,7 +54,7 @@ export function ContainerHeaderView({
       </div>
 
       <div className="tab-actions">
-        <button onClick={() => onDetachTab(activeTab)}>detach</button>
+        <button onClick={() => onDetachTab(activeTab)}>↗</button>
         <button onClick={() => onCloseTab(activeTab.id)}>×</button>
       </div>
     </div>
