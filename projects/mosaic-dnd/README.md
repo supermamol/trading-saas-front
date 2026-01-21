@@ -1500,25 +1500,25 @@ Date:   Tue Jan 20 21:59:24 2026 +0100
 
 Un petit point d'étape sur le front :
 
-- move (dnd) container -> drop zone : ok (Mosaic)
+ok- move (dnd) container -> drop zone : ok (Mosaic)
 
-- close container : visuel ok mais workspace inchangé
+ok- close container : visuel ok mais workspace inchangé
 
-- présentation tablist + boutons action tab actif dans la même ligne : ok
+ok- présentation tablist + boutons action tab actif dans la même ligne : ok
 
-- tabs dans la tablist : affichage ok avec xor (drag/select)
+ok- tabs dans la tablist : affichage ok avec xor (drag/select)
 
-- select tab : ok (tab devient actif et ordre des tabs dans la tablist inchangé)
+ok- select tab : ok (tab devient actif et ordre des tabs dans la tablist inchangé)
 
-- scroll vertical dans content tab : ok
+ok- scroll vertical dans content tab : ok
 
-- drag tab (cas plusieurs tabs) -> container : dnd, visuel et workspace ok 
+ok- drag tab (cas plusieurs tabs) -> container : dnd, visuel et workspace ok 
 
-- drag tab (cas tab seul) -> container : dnd, visuel et workspace ok 
+ok- drag tab (cas tab seul) -> container : dnd, visuel et workspace ok 
 
-- close tab (cas plusieurs tabs) : visuel et workspace ok
+ok- close tab (cas plusieurs tabs) : visuel et workspace ok
 
-- close tab (cas tab seul) : visuel et workspace ok
+ok- close tab (cas tab seul) : visuel et workspace ok
 
 - isolation tab actif (dnd tab --> zone drop du même container) : à faire
 
@@ -1672,6 +1672,15 @@ OK: Close container → workspace + prune ✅
 
 
 OK ---> detached[] ajouté au workspace
+
+| CU      | Crée tab | Utilise règles de regroupement | Modifie `detached[]` | Appel clé    |
+| ------- | -------- | ------------------------------ | -------------------- | ------------ |
+| MOVE    | ❌       | ✅                             | ❌                   | `canGroup`   |
+| CREATE  | ✅       | ✅                             | ❌                   | `openPanel`  |
+| ISOLATE | ❌       | ➖ *(implicite, split)*        | ❌                   | `isolateTab` |
+| DETACH  | ❌       | ❌                             | ➕                   | `detachTab`  |
+| RATTACH | ❌       | ✅                             | ➖                   | `openPanel`  |
+
 
 
 
