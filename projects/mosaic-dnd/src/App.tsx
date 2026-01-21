@@ -14,6 +14,7 @@ import {
 } from "./ui/WorkspaceMosaicView";
 
 import { WorkspaceDnDProvider } from "./ui/WorkspaceDnDProvider";
+import { openPanel } from "./model/workspace.panels";
 
 /* ======================================================
  * Types
@@ -42,7 +43,7 @@ function initialWorkspace(): Workspace {
       C2: c2,
       C3: c3,
     },
-    detached: []
+    detached: [],
   };
 }
 
@@ -57,13 +58,13 @@ export default function App() {
     return { workspace, layout };
   });
 
-  // 🔍 DEBUG DEV : exposer le workspace courant
+  // 🔍 DEBUG DEV
   if (import.meta.env.DEV) {
     (window as any).__workspace = {
       containers: state.workspace.containers,
       detached: state.workspace.detached,
     };
-  } 
+  }
 
   const onStateChange = (
     updater: (s: WorkspaceState) => WorkspaceState
@@ -71,18 +72,80 @@ export default function App() {
     setState(updater);
   };
 
+  /* ======================================================
+   * CREATE helpers (DEV)
+   * ====================================================== */
+  function create(kind: "Chart" | "Run" | "Nodered", strategyId?: string) {
+    onStateChange((s) => {
+      const beforeIds = Object.keys(s.workspace.containers);
+      const nextWorkspace = openPanel(s.workspace, kind, { strategyId });
+      const afterIds = Object.keys(nextWorkspace.containers);
+
+      // si nouveau container → rebuild layout
+      const layout =
+        afterIds.length !== beforeIds.length
+          ? buildInitialLayout(afterIds.sort())
+          : s.layout;
+
+      return {
+        workspace: nextWorkspace,
+        layout,
+      };
+    });
+  }
+
   return (
     <div
       style={{
         height: "calc(100vh - 20px)",
         background: "#f3f4f6",
         padding: 12,
+        display: "flex",
+        flexDirection: "column",
+        gap: 8,
       }}
     >
-      <WorkspaceDnDProvider
-        state={state}
-        onStateChange={onStateChange}
+      {/* ======================================================
+       * DEV — CREATE buttons
+       * ====================================================== */}
+      <div
+        style={{
+          display: "flex",
+          gap: 8,
+          padding: 8,
+          background: "#e5e7eb",
+          borderRadius: 6,
+          flexWrap: "wrap",
+        }}
       >
+        <strong>CREATE</strong>
+
+        <button onClick={() => create("Chart")}>
+          + Chart (no ctx)
+        </button>
+        <button onClick={() => create("Chart", "S1")}>
+          + Chart S1
+        </button>
+        <button onClick={() => create("Chart", "S2")}>
+          + Chart S2
+        </button>
+
+        <button onClick={() => create("Run", "S1")}>
+          + Run S1
+        </button>
+        <button onClick={() => create("Run", "S2")}>
+          + Run S2
+        </button>
+
+        <button onClick={() => create("Nodered", "S1")}>
+          + Nodered S1
+        </button>
+      </div>
+
+      {/* ======================================================
+       * Workspace
+       * ====================================================== */}
+      <WorkspaceDnDProvider state={state} onStateChange={onStateChange}>
         {(hoveredContainerId) => (
           <WorkspaceMosaicView
             state={state}

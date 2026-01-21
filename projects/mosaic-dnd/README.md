@@ -1684,6 +1684,48 @@ OK ---> detached[] ajouté au workspace
 
 
 
+✅ Règle validée
+1️⃣ CREATE = regroupement fort
+
+    kind + payload (ex: strategyId)
+
+    CREATE exprime une intention métier
+
+    « Je veux ouvrir ce type précis de panel, dans ce contexte précis »
+
+    Donc le regroupement doit être strict
+
+    👉 GroupKey = { kind, payload }
+
+C’est exactement ce que fait openPanel aujourd’hui ✔️
+(et tes tests CREATE le confirment)
+2️⃣ MOVE = regroupement faible
+
+    kind uniquement
+
+    MOVE exprime une intention utilisateur
+
+    « Je décide manuellement de ranger ce tab ici »
+
+    Le contexte (payload) est secondaire
+
+    👉 seule contrainte : homogénéité visuelle & fonctionnelle
+
+    Donc :
+
+canGroup(tab, container) => tab.kind === container.tabs[0].kind
+
+C’est cohérent avec :
+
+    le DnD visuel
+
+    la logique de “post-création”
+
+    les use cases réels (ex: comparer deux charts de stratégies différentes)
+
+
+
+
 
 
 
