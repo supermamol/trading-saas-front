@@ -58,8 +58,11 @@ export default function App() {
 
   // 🔍 DEBUG DEV : exposer le workspace courant
   if (import.meta.env.DEV) {
-    (window as any).__workspace = state.workspace;
-  }
+    (window as any).__workspace = {
+      containers: state.workspace.containers,
+      detached: state.workspace.detached,
+    };
+  } 
 
   const onStateChange = (
     updater: (s: WorkspaceState) => WorkspaceState

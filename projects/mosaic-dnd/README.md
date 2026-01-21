@@ -1492,6 +1492,176 @@ Ordre recommandé (et validé) :
 
     🎨 Polish
 
+===================================================================
+commit 2cf6040efd4342bcef1460d41a3f8d674d8a6ea5 (HEAD -> mosaic-phase-2, origin/mosaic-phase-2)
+Author: Serge Helly <sergio@localhost-live.home>
+Date:   Tue Jan 20 21:59:24 2026 +0100
+-------------------------------------------------------------------
+
+Un petit point d'étape sur le front :
+
+- move (dnd) container -> drop zone : ok (Mosaic)
+
+- close container : visuel ok mais workspace inchangé
+
+- présentation tablist + boutons action tab actif dans la même ligne : ok
+
+- tabs dans la tablist : affichage ok avec xor (drag/select)
+
+- select tab : ok (tab devient actif et ordre des tabs dans la tablist inchangé)
+
+- scroll vertical dans content tab : ok
+
+- drag tab (cas plusieurs tabs) -> container : dnd, visuel et workspace ok 
+
+- drag tab (cas tab seul) -> container : dnd, visuel et workspace ok 
+
+- close tab (cas plusieurs tabs) : visuel et workspace ok
+
+- close tab (cas tab seul) : visuel et workspace ok
+
+- isolation tab actif (dnd tab --> zone drop du même container) : à faire
+
+- création nouveau tab (tab de même type existe) : à faire (mise en onglet)
+
+- création nouveau tab (tab de même type absent) : à faire (insertion selon zonage)
+
+- restriction des regroupements des tabs (en tablist) suivant le type: à faire
+
+- detach tab actif (ouverture dans nouvelle fenetre à part) : à faire (bouton prêt)
+
+- rattach tab (depuis fenetre à part) : à faire (après detach)
+
+===================================================================
+
+
+Phase 0 — Verrouiller la source de vérité (1–2 tickets)
+
+Objectif : plus aucun décalage UI ↔ workspace.
+
+    Close container (✕ Mosaic) doit supprimer dans le workspace
+
+    Implémentation : dans handleRemove, supprimer workspace.containers[containerId] + pruneLayout.
+
+    Tests modèle : removeContainer(workspace,id) ⇒ container absent.
+
+    Tests UI : click ✕ ⇒ plus visible et plus présent dans __workspace.
+
+    Invariants rapides (assertions dev)
+
+    Pas de container vide
+
+    Pas de tab dupliqué
+
+    Active tab = dernier (si c’est ta règle)
+
+    (optionnel) helper assertWorkspace(workspace) en DEV.
+
+Phase 1 — Règles métier “openPanel / regroupements” (le cœur produit)
+
+Objectif : créer des tabs et les grouper correctement, sans ambiguïté.
+
+    Définir la table des règles de regroupement
+
+    Ex : quels PanelKind peuvent cohabiter en tablist, quels groupKeys.
+
+    Sortie : une fonction unique canGroup(kindA, kindB) ou groupKeyFor(kind, context) + restrictions.
+
+    Créer tab si même type existe → ajout dans onglets
+
+    Modèle : openPanel doit “trouver container compatible” puis pushTab.
+
+    UI : action “open” ne crée pas de container.
+
+    Créer tab si type absent → création container + insertion Mosaic (zonage minimal)
+
+    Modèle : openPanel crée le container.
+
+    UI : décide du placement dans Mosaic (ex : à droite du container actif / dernier utilisé).
+
+    Tests UI : “open absent” ⇒ nouveau container + layout split cohérent.
+
+    Dépendance critique : 3 avant 4–5 (sinon tu recodes openPanel 2 fois).
+
+Phase 2 — DnD complet du tab actif
+
+Objectif : un geste DnD = un résultat clair.
+
+    DnD tab actif → autre container = move (déjà OK)
+
+    Garder tel quel, ajouter tests régression.
+
+    DnD tab actif → zones N/E/S/W du même container = isolate
+
+    UI : 4 droppables internes (zones).
+
+    Modèle : isolateTabById(workspace, tabId) doit retourner {workspace, newContainerId}.
+
+    Mosaic : splitLayoutAtPath(layout, sourceContainerId, newContainerId, direction, insert).
+
+    Tests :
+
+        Modèle : tab retiré du source + nouveau container contient uniquement ce tab + invariants OK.
+
+        UI : drop N/E/S/W ⇒ split attendu.
+
+    Dépendances : nécessite un newContainerId fiable (sinon comparaison d’IDs fragile).
+
+Phase 3 — Fenêtres : Detach / Rattach (après stabilisation des règles)
+
+Objectif : sortir un panel du workspace (vraie fenêtre), puis le rattacher proprement.
+
+    Detach tab actif (bouton ↗)
+
+    Modèle recommandé : workspace.detached[] (liste des panels détachés) + detachPanel (retire du workspace + push dans detached).
+
+    UI : window.open(...) (side-effect) + state update.
+
+    Ne pas “split Mosaic” ici : detach = hors workspace.
+
+    Rattach depuis la fenêtre
+
+    Modèle : reattachPanel(workspace, detachedId) ⇒ remove detached + openPanel(kind, context).
+
+    Communication fenêtre → app :
+
+        simple : BroadcastChannel ou postMessage
+
+        e2e conseillé (Playwright) plutôt que unit-only.
+
+    Dépendance : Detach avant Rattach (et règles openPanel déjà stables).
+
+Phase 4 — Hardening / Qualité
+
+    Suite de tests modèle (prioritaire)
+
+    openPanel (group rules), closeTab, moveTab, isolateTabById, detach/reattach
+
+    Invariants systématiques.
+
+    Tests UI ciblés
+
+    2–3 tests d’intégration : move tab, isolate zone, close container
+
+    E2E multi-fenêtres uniquement pour detach/reattach.
+
+
+-------------------------------------------------------------------
+
+OK: Close container → workspace + prune ✅
+
+    Règles regroupement + openPanel (même type / absent) ✅
+
+    Isolate via 4 zones (DnD complet) ✅
+
+    Detach / Rattach (fenêtres) ✅
+
+    Tests + invariants + polish ✅
+
+===================================================================
+
+
+
 
 
 
