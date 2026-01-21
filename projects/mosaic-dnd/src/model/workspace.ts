@@ -6,6 +6,7 @@ import type { Container } from "./container";
 import { pushTab, removeTab } from "./container";
 import type { TabId, ContainerId } from "./ids";
 import type { Tab } from "./tab";
+import { canGroup } from "./canGroup";
 
 /* ======================================================
  * Types
@@ -75,19 +76,20 @@ function removeTabFromContainer(
 /**
  * Déplace un tab vers un autre container (header)
  */
-export function moveTabToContainer(
+ export function moveTabToContainer(
   workspace: Workspace,
   tab: Tab,
   targetContainerId: ContainerId
 ): Workspace {
   const source = findContainerByTab(workspace, tab.id);
-  if (!source) {
-    throw new Error(`Source container not found for tab ${tab.id}`);
-  }
+  if (!source) throw new Error("Source not found");
 
   const target = workspace.containers[targetContainerId];
-  if (!target) {
-    throw new Error(`Target container ${targetContainerId} not found`);
+  if (!target) throw new Error("Target not found");
+
+  // 🔒 RÈGLE MÉTIER
+  if (!canGroup(tab, target)) {
+    return workspace; // no-op métier
   }
 
   const afterRemoval =
@@ -101,6 +103,7 @@ export function moveTabToContainer(
     },
   };
 }
+
 
 /**
  * Ferme un tab

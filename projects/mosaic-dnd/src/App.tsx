@@ -24,13 +24,13 @@ type Layout = MosaicNode<string>;
  * Initial workspace
  * ====================================================== */
 function initialWorkspace(): Workspace {
-  const A: Tab = { id: "A", kind: "test" };
-  const B: Tab = { id: "B", kind: "test" };
-  const C: Tab = { id: "C", kind: "test" };
-  const D: Tab = { id: "D", kind: "test" };
-  const E: Tab = { id: "E", kind: "test" };
-  const F: Tab = { id: "F", kind: "test" };
-  const G: Tab = { id: "G", kind: "test" };
+  const A: Tab = { id: "A", kind: "chart" };
+  const B: Tab = { id: "B", kind: "chart" };
+  const C: Tab = { id: "C", kind: "chart" };
+  const D: Tab = { id: "D", kind: "run" };
+  const E: Tab = { id: "E", kind: "run" };
+  const F: Tab = { id: "F", kind: "run" };
+  const G: Tab = { id: "G", kind: "chart" };
 
   const c1: Container = { id: "C1", tabs: [A, B, C] };
   const c2: Container = { id: "C2", tabs: [D, E, F] };

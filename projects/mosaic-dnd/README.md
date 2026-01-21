@@ -1527,6 +1527,7 @@ ok- close tab (cas tab seul) : visuel et workspace ok
 - création nouveau tab (tab de même type absent) : à faire (insertion selon zonage)
 
 - restriction des regroupements des tabs (en tablist) suivant le type: à faire
+ok --> pour MOVE
 
 - detach tab actif (ouverture dans nouvelle fenetre à part) : à faire (bouton prêt)
 
