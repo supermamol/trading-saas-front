@@ -1,68 +1,124 @@
 import "react-mosaic-component/react-mosaic-component.css";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { MosaicNode } from "react-mosaic-component";
 
+/* =========================
+ * Modèle
+ * ========================= */
 import type { Workspace } from "./model/workspace";
-import type { Container } from "./model/container";
-import type { Tab } from "./model/tab";
+import { openPanel } from "./model/workspace.panels";
+import type {
+  PanelKind,
+  PanelContext,
+} from "./model/workspace.panels";
 
+/* =========================
+ * UI / Layout
+ * ========================= */
 import {
   WorkspaceMosaicView,
   buildInitialLayout,
   type WorkspaceState,
 } from "./ui/WorkspaceMosaicView";
 
+import {
+  ensureVerticalRootLayout,
+  insertInZoneAndSlot,
+  type VerticalZone,
+  type HorizontalSlot,
+} from "./ui/mosaicLayout";
+
 import { WorkspaceDnDProvider } from "./ui/WorkspaceDnDProvider";
-import { openPanel } from "./model/workspace.panels";
 
-/* ======================================================
- * Types
- * ====================================================== */
-type Layout = MosaicNode<string>;
+/* =========================
+ * Placement CREATE
+ * ========================= */
+function placementForKind(
+  kind: PanelKind
+): { zone: VerticalZone; slot: HorizontalSlot } {
+  switch (kind) {
+    case "Nodered":
+      return { zone: "top", slot: "left" };
 
-/* ======================================================
+    case "Chart":
+      return { zone: "top", slot: "right" };
+
+    case "Strategies":
+      return { zone: "bottom", slot: "left" };
+
+    case "StrategyDetail":
+      return { zone: "bottom", slot: "center" };
+
+    case "Run":
+      return { zone: "bottom", slot: "right" };
+
+    default:
+      return { zone: "top", slot: "right" };
+  }
+}
+
+function hasContainerOfKind(
+  workspace: Workspace,
+  kind: PanelKind
+): boolean {
+  return Object.values(workspace.containers).some((c) =>
+    c.tabs.some((t) => t.kind === kind)
+  );
+}
+
+function slotForContainerId(
+  workspace: Workspace,
+  id: string
+): HorizontalSlot | null {
+  const c = workspace.containers[id];
+  if (!c) return null;
+  return placementForKind(c.tabs[0].kind).slot;
+}
+
+/* =========================
  * Initial workspace
- * ====================================================== */
+ * ========================= */
 function initialWorkspace(): Workspace {
-  const A: Tab = { id: "A", kind: "chart" };
-  const B: Tab = { id: "B", kind: "chart" };
-  const C: Tab = { id: "C", kind: "chart" };
-  const D: Tab = { id: "D", kind: "run" };
-  const E: Tab = { id: "E", kind: "run" };
-  const F: Tab = { id: "F", kind: "run" };
-  const G: Tab = { id: "G", kind: "chart" };
-
-  const c1: Container = { id: "C1", tabs: [A, B, C] };
-  const c2: Container = { id: "C2", tabs: [D, E, F] };
-  const c3: Container = { id: "C3", tabs: [G] };
-
   return {
-    containers: {
-      C1: c1,
-      C2: c2,
-      C3: c3,
-    },
+    containers: {},
     detached: [],
   };
 }
 
-/* ======================================================
+/* =========================
  * App
- * ====================================================== */
+ * ========================= */
 export default function App() {
   const [state, setState] = useState<WorkspaceState>(() => {
     const workspace = initialWorkspace();
-    const containerIds = Object.keys(workspace.containers).sort();
-    const layout = buildInitialLayout(containerIds);
+    const layout = ensureVerticalRootLayout(
+      buildInitialLayout([])
+    );
     return { workspace, layout };
   });
 
-  // 🔍 DEBUG DEV
+  /**
+   * 🔒 ZONE MAP
+   * - persiste entre renders
+   * - utilisée UNIQUEMENT pour CREATE
+   * - clé = containerId
+   */
+  const zoneMapRef = useRef<
+    Record<
+      string,
+      { zone: VerticalZone; slot: HorizontalSlot }
+    >
+  >({});
+
+  /* =========================
+   * DEV debug
+   * ========================= */
   if (import.meta.env.DEV) {
     (window as any).__workspace = {
       containers: state.workspace.containers,
       detached: state.workspace.detached,
+      zoneMap: zoneMapRef.current,
     };
   }
 
@@ -72,28 +128,65 @@ export default function App() {
     setState(updater);
   };
 
-  /* ======================================================
-   * CREATE helpers (DEV)
-   * ====================================================== */
-  function create(kind: "Chart" | "Run" | "Nodered", strategyId?: string) {
-    onStateChange((s) => {
-      const beforeIds = Object.keys(s.workspace.containers);
-      const nextWorkspace = openPanel(s.workspace, kind, { strategyId });
-      const afterIds = Object.keys(nextWorkspace.containers);
+  /* =========================
+   * CREATE (avec zonage)
+   * ========================= */
+  function createPanel(
+    kind: PanelKind,
+    context: PanelContext = {}
+  ) {
+    setState((s) => {
+      const hadKindBefore = hasContainerOfKind(
+        s.workspace,
+        kind
+      );
 
-      // si nouveau container → rebuild layout
-      const layout =
-        afterIds.length !== beforeIds.length
-          ? buildInitialLayout(afterIds.sort())
-          : s.layout;
+      const nextWorkspace = openPanel(
+        s.workspace,
+        kind,
+        context
+      );
+
+      const beforeIds = Object.keys(
+        s.workspace.containers
+      );
+      const afterIds = Object.keys(
+        nextWorkspace.containers
+      );
+
+      const newContainerId = afterIds.find(
+        (id) => !beforeIds.includes(id)
+      );
+
+      // Pas de nouveau container → pas de zonage
+      if (!newContainerId || hadKindBefore) {
+        return {
+          ...s,
+          workspace: nextWorkspace,
+        };
+      }
+
+      const rootLayout = ensureVerticalRootLayout(s.layout);
+      const { zone, slot } = placementForKind(kind);
+
+      const nextLayout = insertInZoneAndSlot(
+        rootLayout,
+        zone,
+        slot,
+        newContainerId,
+        (id) => slotForContainerId(nextWorkspace, id)
+      );
 
       return {
         workspace: nextWorkspace,
-        layout,
+        layout: nextLayout,
       };
     });
   }
 
+  /* =========================
+   * Render
+   * ========================= */
   return (
     <div
       style={{
@@ -105,47 +198,145 @@ export default function App() {
         gap: 8,
       }}
     >
-      {/* ======================================================
+      {/* =========================
        * DEV — CREATE buttons
-       * ====================================================== */}
+       * ========================= */}
       <div
         style={{
           display: "flex",
+          flexDirection: "column",
           gap: 8,
           padding: 8,
           background: "#e5e7eb",
           borderRadius: 6,
-          flexWrap: "wrap",
         }}
       >
-        <strong>CREATE</strong>
+        <strong>CREATE (DEV)</strong>
 
-        <button onClick={() => create("Chart")}>
-          + Chart (no ctx)
-        </button>
-        <button onClick={() => create("Chart", "S1")}>
-          + Chart S1
-        </button>
-        <button onClick={() => create("Chart", "S2")}>
-          + Chart S2
-        </button>
+        {/* -------- TOP -------- */}
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          <strong>TOP</strong>
 
-        <button onClick={() => create("Run", "S1")}>
-          + Run S1
-        </button>
-        <button onClick={() => create("Run", "S2")}>
-          + Run S2
-        </button>
+          <button onClick={() => createPanel("Chart")}>
+            + Chart
+          </button>
+          <button
+            onClick={() =>
+              createPanel("Chart", { strategyId: "S1" })
+            }
+          >
+            + Chart S1
+          </button>
+          <button
+            onClick={() =>
+              createPanel("Chart", { strategyId: "S2" })
+            }
+          >
+            + Chart S2
+          </button>
 
-        <button onClick={() => create("Nodered", "S1")}>
-          + Nodered S1
-        </button>
+          <button onClick={() => createPanel("Nodered")}>
+            + Nodered
+          </button>
+          <button
+            onClick={() =>
+              createPanel("Nodered", {
+                strategyId: "S1",
+              })
+            }
+          >
+            + Nodered S1
+          </button>
+          <button
+            onClick={() =>
+              createPanel("Nodered", {
+                strategyId: "S2",
+              })
+            }
+          >
+            + Nodered S2
+          </button>
+        </div>
+
+        {/* -------- BOTTOM -------- */}
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+          <strong>BOTTOM</strong>
+
+          <button onClick={() => createPanel("Strategies")}>
+            + Strategies
+          </button>
+          <button
+            onClick={() =>
+              createPanel("Strategies", {
+                strategyId: "S1",
+              })
+            }
+          >
+            + Strategies S1
+          </button>
+          <button
+            onClick={() =>
+              createPanel("Strategies", {
+                strategyId: "S2",
+              })
+            }
+          >
+            + Strategies S2
+          </button>
+
+          <button
+            onClick={() =>
+              createPanel("StrategyDetail")
+            }
+          >
+            + StrategyDetail
+          </button>
+          <button
+            onClick={() =>
+              createPanel("StrategyDetail", {
+                strategyId: "S1",
+              })
+            }
+          >
+            + StrategyDetail S1
+          </button>
+          <button
+            onClick={() =>
+              createPanel("StrategyDetail", {
+                strategyId: "S2",
+              })
+            }
+          >
+            + StrategyDetail S2
+          </button>
+
+          <button onClick={() => createPanel("Run")}>
+            + Run
+          </button>
+          <button
+            onClick={() =>
+              createPanel("Run", { strategyId: "S1" })
+            }
+          >
+            + Run S1
+          </button>
+          <button
+            onClick={() =>
+              createPanel("Run", { strategyId: "S2" })
+            }
+          >
+            + Run S2
+          </button>
+        </div>
       </div>
 
-      {/* ======================================================
+      {/* =========================
        * Workspace
-       * ====================================================== */}
-      <WorkspaceDnDProvider state={state} onStateChange={onStateChange}>
+       * ========================= */}
+      <WorkspaceDnDProvider
+        state={state}
+        onStateChange={onStateChange}
+      >
         {(hoveredContainerId) => (
           <WorkspaceMosaicView
             state={state}

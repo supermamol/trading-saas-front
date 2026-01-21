@@ -1522,12 +1522,13 @@ ok- close tab (cas tab seul) : visuel et workspace ok
 
 - isolation tab actif (dnd tab --> zone drop du même container) : à faire
 
-- création nouveau tab (tab de même type existe) : à faire (mise en onglet)
+ok- création nouveau tab (tab de même type existe) : à faire (mise en onglet)
 
-- création nouveau tab (tab de même type absent) : à faire (insertion selon zonage)
+ok- création nouveau tab (tab de même type absent) : à faire (insertion selon zonage)
 
 - restriction des regroupements des tabs (en tablist) suivant le type: à faire
 ok --> pour MOVE
+ok --> pour CREATE
 
 - detach tab actif (ouverture dans nouvelle fenetre à part) : à faire (bouton prêt)
 
@@ -1535,119 +1536,6 @@ ok --> pour MOVE
 
 ===================================================================
 
-
-Phase 0 — Verrouiller la source de vérité (1–2 tickets)
-
-Objectif : plus aucun décalage UI ↔ workspace.
-
-    Close container (✕ Mosaic) doit supprimer dans le workspace
-
-    Implémentation : dans handleRemove, supprimer workspace.containers[containerId] + pruneLayout.
-
-    Tests modèle : removeContainer(workspace,id) ⇒ container absent.
-
-    Tests UI : click ✕ ⇒ plus visible et plus présent dans __workspace.
-
-    Invariants rapides (assertions dev)
-
-    Pas de container vide
-
-    Pas de tab dupliqué
-
-    Active tab = dernier (si c’est ta règle)
-
-    (optionnel) helper assertWorkspace(workspace) en DEV.
-
-Phase 1 — Règles métier “openPanel / regroupements” (le cœur produit)
-
-Objectif : créer des tabs et les grouper correctement, sans ambiguïté.
-
-    Définir la table des règles de regroupement
-
-    Ex : quels PanelKind peuvent cohabiter en tablist, quels groupKeys.
-
-    Sortie : une fonction unique canGroup(kindA, kindB) ou groupKeyFor(kind, context) + restrictions.
-
-    Créer tab si même type existe → ajout dans onglets
-
-    Modèle : openPanel doit “trouver container compatible” puis pushTab.
-
-    UI : action “open” ne crée pas de container.
-
-    Créer tab si type absent → création container + insertion Mosaic (zonage minimal)
-
-    Modèle : openPanel crée le container.
-
-    UI : décide du placement dans Mosaic (ex : à droite du container actif / dernier utilisé).
-
-    Tests UI : “open absent” ⇒ nouveau container + layout split cohérent.
-
-    Dépendance critique : 3 avant 4–5 (sinon tu recodes openPanel 2 fois).
-
-Phase 2 — DnD complet du tab actif
-
-Objectif : un geste DnD = un résultat clair.
-
-    DnD tab actif → autre container = move (déjà OK)
-
-    Garder tel quel, ajouter tests régression.
-
-    DnD tab actif → zones N/E/S/W du même container = isolate
-
-    UI : 4 droppables internes (zones).
-
-    Modèle : isolateTabById(workspace, tabId) doit retourner {workspace, newContainerId}.
-
-    Mosaic : splitLayoutAtPath(layout, sourceContainerId, newContainerId, direction, insert).
-
-    Tests :
-
-        Modèle : tab retiré du source + nouveau container contient uniquement ce tab + invariants OK.
-
-        UI : drop N/E/S/W ⇒ split attendu.
-
-    Dépendances : nécessite un newContainerId fiable (sinon comparaison d’IDs fragile).
-
-Phase 3 — Fenêtres : Detach / Rattach (après stabilisation des règles)
-
-Objectif : sortir un panel du workspace (vraie fenêtre), puis le rattacher proprement.
-
-    Detach tab actif (bouton ↗)
-
-    Modèle recommandé : workspace.detached[] (liste des panels détachés) + detachPanel (retire du workspace + push dans detached).
-
-    UI : window.open(...) (side-effect) + state update.
-
-    Ne pas “split Mosaic” ici : detach = hors workspace.
-
-    Rattach depuis la fenêtre
-
-    Modèle : reattachPanel(workspace, detachedId) ⇒ remove detached + openPanel(kind, context).
-
-    Communication fenêtre → app :
-
-        simple : BroadcastChannel ou postMessage
-
-        e2e conseillé (Playwright) plutôt que unit-only.
-
-    Dépendance : Detach avant Rattach (et règles openPanel déjà stables).
-
-Phase 4 — Hardening / Qualité
-
-    Suite de tests modèle (prioritaire)
-
-    openPanel (group rules), closeTab, moveTab, isolateTabById, detach/reattach
-
-    Invariants systématiques.
-
-    Tests UI ciblés
-
-    2–3 tests d’intégration : move tab, isolate zone, close container
-
-    E2E multi-fenêtres uniquement pour detach/reattach.
-
-
--------------------------------------------------------------------
 
 OK: Close container → workspace + prune ✅
 
@@ -1724,11 +1612,42 @@ C’est cohérent avec :
     les use cases réels (ex: comparer deux charts de stratégies différentes)
 
 
+--------------------------------------------------------
 
+Comportement CREATE avec containers mixtes
+""""""""""""""""""""""""""""""""""""""""""
 
+Oui — après un MOVE, tu peux te retrouver avec un container “mixte” : même kind, payloads différents. Du coup, CREATE doit définir une stratégie de sélection de container (sinon il devient non-déterministe / surprenant).
 
+Quand tu fais openPanel(kind, payload) (GroupKey = kind + payload), tu choisis un seul container cible selon cette priorité :
 
+    Container “pur” exact
+    → tous les tabs du container ont exactement le même (kind + payload) que le nouveau tab.
+    ✅ meilleur match, stable, pas d’effet de bord.
 
+    Container “contient” exact
+    → le container a au moins un tab avec le même (kind + payload).
+    ✅ tu renforces un cluster existant, même si le container est “pollué”.
 
+    Container “contient kind”
+    → le container a au moins un tab de même kind (payload différent).
+    ✅ fallback “rassemblement manuel post-MOVE”, cohérent avec votre philosophie.
 
+    Sinon
+    → créer un nouveau container et l’insérer via le zonage par défaut (puisque “aucun container de ce kind n’existe” est faux ici si on a un container de ce kind ; donc le zonage par défaut ne s’applique que si vraiment aucun container du kind n’existe).
+
+Le zonage vertical (HAUT / BAS) est prioritaire sur le zonage horizontal (GAUCHE / CENTRE / DROITE).
+
+COLUMN
+├── TOP (~60%)
+│   └── ROW
+│       ├── Nodered
+│       └── Charts
+└── BOTTOM (~40%)
+    └── ROW
+        ├── Strategies
+        ├── StrategyDetail
+        └── Runs
+
+------------------------------------------------------------
 

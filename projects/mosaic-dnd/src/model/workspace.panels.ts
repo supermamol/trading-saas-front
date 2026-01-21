@@ -62,36 +62,77 @@ function groupKeyFor(kind: PanelKind, context: PanelContext = {}): GroupKey {
  * - regroupement ou création
  * - délègue aux opérations sur tabs
  */
-export function openPanel(
+ export function openPanel(
   workspace: Workspace,
   kind: PanelKind,
   context: PanelContext = {}
 ): Workspace {
   const tab = makeTab(kind, context);
-  const groupKey = groupKeyFor(kind, context);
+  const targetStrategyId = context.strategyId;
 
-  // 1️⃣ chercher un container compatible
-  const existing = Object.values(workspace.containers).find((c) => {
-    const cg = (c as ContainerWithGroupKey).groupKey;
-    return cg?.kind === groupKey.kind && cg?.strategyId === groupKey.strategyId;
-  }) as ContainerWithGroupKey | undefined;
+  const containers = Object.values(workspace.containers)
+    .slice()
+    .sort((a, b) => a.id.localeCompare(b.id));
 
-  if (existing) {
+  // helpers
+  const sameGroupKey = (t: Tab) =>
+    t.kind === kind &&
+    t.payload?.strategyId === targetStrategyId;
+
+  const sameKind = (t: Tab) =>
+    t.kind === kind;
+
+  // 1️⃣ container "pur exact"
+  const pureExact = containers.find(c =>
+    c.tabs.every(t => sameGroupKey(t))
+  );
+  if (pureExact) {
     return {
       ...workspace,
       containers: {
         ...workspace.containers,
-        [existing.id]: pushTab(existing, tab),
+        [pureExact.id]: pushTab(pureExact, tab),
       },
     };
   }
 
-  // 2️⃣ créer un nouveau container
+  // 2️⃣ container "contient exact"
+  const containsExact = containers.find(c =>
+    c.tabs.some(t => sameGroupKey(t))
+  );
+  if (containsExact) {
+    return {
+      ...workspace,
+      containers: {
+        ...workspace.containers,
+        [containsExact.id]: pushTab(containsExact, tab),
+      },
+    };
+  }
+
+  // 3️⃣ container "contient kind"
+  const containsKind = containers.find(c =>
+    c.tabs.some(t => sameKind(t))
+  );
+  if (containsKind) {
+    return {
+      ...workspace,
+      containers: {
+        ...workspace.containers,
+        [containsKind.id]: pushTab(containsKind, tab),
+      },
+    };
+  }
+
+  // 4️⃣ aucun container compatible → nouveau container
   const containerId = `container-${nextContainerId++}` as ContainerId;
 
   const newContainer: ContainerWithGroupKey = {
     id: containerId,
-    groupKey,
+    groupKey: {
+      kind,
+      strategyId: targetStrategyId,
+    },
     tabs: [tab],
   };
 
