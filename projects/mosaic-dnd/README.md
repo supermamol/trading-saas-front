@@ -1660,6 +1660,19 @@ OK: Close container → workspace + prune ✅
 
 ===================================================================
 
+| ----------------------------------- | ---------------------- | ---------------------- | ------------- | --------------------------- | -------------------- | --------------------- |
+| Action utilisateur                  | Intention conceptuelle | Effet métier principal | Crée un panel | Réutilise un panel existant | Modifie `detached[]` | Passe par `openPanel` |
+| ----------------------------------- | ---------------------- | ---------------------- | ------------- | --------------------------- | -------------------- | --------------------- |
+| **Drag tab → autre container**      | MOVE                   | `moveTab`              | ❌            | ✅ (tab existant)           | ❌                   | ❌                    |
+| **Drag tab → split même container** | ISOLATE                | `isolateTab`           | ❌            | ✅ (tab existant)           | ❌                   | ❌                    |
+| **Click ↗ Detach**                  | DETACH                 | `detachPanel`          | ❌            | ✅ (tab existant)           | ➕ ajoute            | ❌                    |
+| **Fenêtre externe → Rattach**       | RATTACH                | `openPanel`            | ❌            | ✅ (panel détaché)          | ➖ supprime          | ✅                    |
+| **Click “New panel”**               | CREATE                 | `openPanel`            | ✅            | ❌                          | ❌                   | ✅                    |
+| ----------------------------------- | ---------------------- | ---------------------- | ------------- | --------------------------- | -------------------- | --------------------- |
+
+
+OK ---> detached[] ajouté au workspace
+
 
 
 

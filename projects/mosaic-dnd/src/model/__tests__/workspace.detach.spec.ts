@@ -11,7 +11,10 @@ import type { Tab } from "../tab";
  * ======================================================= */
 
 function emptyWorkspace(): Workspace {
-  return { containers: {} };
+  return {
+    containers: {},
+    detached: [], // ✅ toujours initialisé
+  };
 }
 
 function containers(ws: Workspace): Container[] {
@@ -35,6 +38,7 @@ function findTab(ws: Workspace, tabId: string): Tab | undefined {
  * ======================================================= */
 
 describe("openPanel", () => {
+
   it("crée un container si aucun compatible n'existe", () => {
     const ws0 = emptyWorkspace();
 
@@ -48,6 +52,9 @@ describe("openPanel", () => {
       kind: "Chart",
       strategyId: "S1",
     });
+
+    // invariant
+    expect(ws1.detached).toHaveLength(0);
   });
 
   it("regroupe les panels par GroupKey", () => {
@@ -58,6 +65,7 @@ describe("openPanel", () => {
 
     expect(containerCount(ws)).toBe(1);
     expect(containers(ws)[0].tabs.length).toBe(2);
+    expect(ws.detached).toHaveLength(0);
   });
 
   it("ne mélange pas des panels de contextes différents", () => {
@@ -67,6 +75,7 @@ describe("openPanel", () => {
     ws = openPanel(ws, "Chart", { strategyId: "S2" });
 
     expect(containerCount(ws)).toBe(2);
+    expect(ws.detached).toHaveLength(0);
   });
 });
 
@@ -75,18 +84,22 @@ describe("openPanel", () => {
  * ======================================================= */
 
 describe("detachPanel", () => {
-  it("retire le tab du workspace", () => {
+
+  it("retire le tab du workspace et l'ajoute à detached", () => {
     let ws = emptyWorkspace();
     ws = openPanel(ws, "Chart", { strategyId: "S1" });
 
     const tab = allTabs(ws)[0];
 
-    const result = detachPanel(ws, tab);
-    const ws2 = result.workspace;
+    const ws2 = detachPanel(ws, tab);
 
+    // tab retiré du workspace
     expect(findTab(ws2, tab.id)).toBeUndefined();
-    expect(result.detached.kind).toBe("Chart");
-    expect(result.detached.context.strategyId).toBe("S1");
+
+    // detached alimenté
+    expect(ws2.detached).toHaveLength(1);
+    expect(ws2.detached[0].kind).toBe("Chart");
+    expect(ws2.detached[0].context.strategyId).toBe("S1");
   });
 
   it("supprime le container s'il devient vide", () => {
@@ -95,9 +108,10 @@ describe("detachPanel", () => {
 
     const tab = allTabs(ws)[0];
 
-    const { workspace: ws2 } = detachPanel(ws, tab);
+    const ws2 = detachPanel(ws, tab);
 
     expect(containerCount(ws2)).toBe(0);
+    expect(ws2.detached).toHaveLength(1);
   });
 });
 
@@ -106,16 +120,22 @@ describe("detachPanel", () => {
  * ======================================================= */
 
 describe("return detached panel", () => {
+
   it("revient via openPanel (pas de restauration de position)", () => {
     let ws = emptyWorkspace();
     ws = openPanel(ws, "Chart", { strategyId: "S1" });
 
     const tab = allTabs(ws)[0];
-    const { workspace: ws2, detached } = detachPanel(ws, tab);
+
+    const ws2 = detachPanel(ws, tab);
+    const detached = ws2.detached[0];
 
     const ws3 = openPanel(ws2, detached.kind, detached.context);
 
     expect(containerCount(ws3)).toBe(1);
     expect(containers(ws3)[0].tabs.length).toBe(1);
+
+    // detached inchangé ici (rattach pas encore implémenté)
+    expect(ws3.detached).toHaveLength(1);
   });
 });

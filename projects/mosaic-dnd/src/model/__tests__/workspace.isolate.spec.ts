@@ -21,6 +21,7 @@ function workspace(containers: Container[]): Workspace {
     containers: Object.fromEntries(
       containers.map(c => [c.id, c])
     ),
+    detached: [], // ✅ toujours initialisé
   };
 }
 
@@ -46,8 +47,7 @@ describe("isolateTab", () => {
       container("C1", [tab("A"), tab("B")]),
     ]);
 
-    const result = isolateTab(ws, "A");
-    const next = result.workspace;
+    const { workspace: next } = isolateTab(ws, "A");
 
     const containers = Object.values(next.containers);
     expect(containers.length).toBe(2);
@@ -64,6 +64,9 @@ describe("isolateTab", () => {
 
     expect(isolated).toBeDefined();
     expect(isolated!.tabs.map(t => t.id)).toEqual(["A"]);
+
+    // ✅ invariant : detached inchangé
+    expect(next.detached).toHaveLength(0);
   });
 
   it("isole un tab depuis un container à 1 tab (remplacement du container)", () => {
@@ -82,13 +85,14 @@ describe("isolateTab", () => {
       container("C1", [tab("A")]),
     ]);
 
-    const result = isolateTab(ws, "A");
-    const next = result.workspace;
+    const { workspace: next } = isolateTab(ws, "A");
 
     const containers = Object.values(next.containers);
     expect(containers.length).toBe(1);
-
     expect(containers[0].tabs.map(t => t.id)).toEqual(["A"]);
+
+    // ✅ invariant : detached inchangé
+    expect(next.detached).toHaveLength(0);
   });
 
 });

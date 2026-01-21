@@ -185,16 +185,10 @@ export function WorkspaceMosaicView({
            * DETACH TAB (CU)
            * ============================= */
           onDetachTab={(tab) =>
-            onStateChange((s) => {
-              const { workspace: nextWs } = detachPanel(s.workspace, tab);
-              const validIds = new Set(Object.keys(nextWs.containers));
-
-              return {
-                ...s,
-                workspace: nextWs,
-                layout: pruneLayout(s.layout, validIds),
-              };
-            })
+            onStateChange((s) => ({
+              ...s,
+              workspace: detachPanel(s.workspace, tab),
+            }))
           }
         />
       </MosaicWindow>

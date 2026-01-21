@@ -1,26 +1,24 @@
 /* ======================================================
- * Invariants Workspace
- * ======================================================
- *
- * - un TabId n’existe que dans un seul container
- * - un container ne peut pas être vide
- * - un container avec 1 tab est valide
- * - toute opération est atomique
- */
+ * Workspace — modèle refactoré avec Detached
+ * ====================================================== */
 
 import type { Container } from "./container";
 import { pushTab, removeTab } from "./container";
-
 import type { TabId, ContainerId } from "./ids";
 import type { Tab } from "./tab";
 
-/**
- * Workspace
- * ---
- * État global du système de tabs
- */
+/* ======================================================
+ * Types
+ * ====================================================== */
+
+export type DetachedPanel = {
+  kind: Tab["kind"];
+  context: Record<string, unknown>;
+};
+
 export interface Workspace {
   containers: Record<ContainerId, Container>;
+  detached: DetachedPanel[];
 }
 
 /* ======================================================
@@ -36,12 +34,46 @@ export function findContainerByTab(
 }
 
 /* ======================================================
- * Opérations métier (atomiques)
+ * Helpers internes
+ * ====================================================== */
+
+function removeContainer(
+  workspace: Workspace,
+  containerId: ContainerId
+): Workspace {
+  const { [containerId]: _, ...rest } = workspace.containers;
+  return {
+    ...workspace,
+    containers: rest,
+  };
+}
+
+function removeTabFromContainer(
+  workspace: Workspace,
+  source: Container,
+  tabId: TabId
+): Workspace {
+  // container avec plusieurs tabs → simple retrait
+  if (source.tabs.length > 1) {
+    return {
+      ...workspace,
+      containers: {
+        ...workspace.containers,
+        [source.id]: removeTab(source, tabId),
+      },
+    };
+  }
+
+  // container à 1 tab → dissolution
+  return removeContainer(workspace, source.id);
+}
+
+/* ======================================================
+ * Opérations métier
  * ====================================================== */
 
 /**
- * Déplace un tab d’un container source vers un container cible
- * (tab -> entête)
+ * Déplace un tab vers un autre container (header)
  */
 export function moveTabToContainer(
   workspace: Workspace,
@@ -58,53 +90,20 @@ export function moveTabToContainer(
     throw new Error(`Target container ${targetContainerId} not found`);
   }
 
-  const nextTarget = pushTab(target, tab);
-
-  // Cas 1️⃣ : le container source avait > 1 tab
-  if (source.tabs.length > 1) {
-    const nextSource = removeTab(source, tab.id);
-
-    return {
-      containers: {
-        ...workspace.containers,
-        [source.id]: nextSource,
-        [target.id]: nextTarget,
-      },
-    };
-  }
-
-  // Cas 2️⃣ : le container source avait 1 tab → auto‑dissolution
-  const { [source.id]: _, ...rest } = workspace.containers;
+  const afterRemoval =
+    removeTabFromContainer(workspace, source, tab.id);
 
   return {
+    ...afterRemoval,
     containers: {
-      ...rest,
-      [target.id]: nextTarget,
+      ...afterRemoval.containers,
+      [target.id]: pushTab(target, tab),
     },
   };
 }
 
-
-/**
- * Isole un tab
- * (tab -> hors entête)
- *
- * - crée un nouveau container
- * - retire le tab de son container source
- */
-function removeContainer(
-  workspace: Workspace,
-  containerId: ContainerId
-): Workspace {
-  const { [containerId]: _, ...rest } = workspace.containers;
-  return { containers: rest };
-}
-
 /**
  * Ferme un tab
- *
- * - si le container contient > 1 tab → retrait simple
- * - si le container contient 1 tab → destruction du container
  */
 export function closeTab(
   workspace: Workspace,
@@ -115,27 +114,13 @@ export function closeTab(
     throw new Error(`Tab ${tabId} not found`);
   }
 
-  if (source.tabs.length > 1) {
-    const nextSource = removeTab(source, tabId);
-    return {
-      containers: {
-        ...workspace.containers,
-        [source.id]: nextSource,
-      },
-    };
-  }
-
-  // source.tabs.length === 1
-  return removeContainer(workspace, source.id);
+  return removeTabFromContainer(workspace, source, tabId);
 }
 
 /**
- * Isole un tab (split --> zone de split)
- *
- * - si le container source contient > 1 tab → isolation
- * - sinon → fermeture du tab
+ * Isole un tab dans un nouveau container
  */
- export function isolateTab(
+export function isolateTab(
   workspace: Workspace,
   tabId: TabId
 ): {
@@ -154,35 +139,56 @@ export function closeTab(
 
   const newContainerId: ContainerId = `C_${crypto.randomUUID()}`;
 
-  const newContainer: Container = {
-    id: newContainerId,
-    tabs: [tab],
-  };
-
-  // Retirer le tab du container source
-  const nextContainers = { ...workspace.containers };
-
-  if (source.tabs.length > 1) {
-    nextContainers[source.id] = removeTab(source, tabId);
-  } else {
-    // source = 1 tab → suppression du container
-    delete nextContainers[source.id];
-  }
-
-  nextContainers[newContainerId] = newContainer;
+  const afterRemoval =
+    removeTabFromContainer(workspace, source, tabId);
 
   return {
-    workspace: { containers: nextContainers },
+    workspace: {
+      ...afterRemoval,
+      containers: {
+        ...afterRemoval.containers,
+        [newContainerId]: {
+          id: newContainerId,
+          tabs: [tab],
+        },
+      },
+    },
     newContainerId,
   };
 }
+
 export function isolateTabById(
   workspace: Workspace,
   tabId: TabId
 ): Workspace {
-  const source = findContainerByTab(workspace, tabId);
-  if (!source) return workspace;
-  const tab = source.tabs.find(t => t.id === tabId);
-  if (!tab) return workspace;
   return isolateTab(workspace, tabId).workspace;
+}
+
+/**
+ * Detach d’un tab (sortie du workspace)
+ */
+export function detachTab(
+  workspace: Workspace,
+  tabId: TabId
+): Workspace {
+  const source = findContainerByTab(workspace, tabId);
+  if (!source) {
+    throw new Error(`Tab ${tabId} not found`);
+  }
+
+  const tab = source.tabs.find(t => t.id === tabId)!;
+
+  const afterRemoval =
+    removeTabFromContainer(workspace, source, tabId);
+
+  return {
+    ...afterRemoval,
+    detached: [
+      ...afterRemoval.detached,
+      {
+        kind: tab.kind,
+        payload: tab.payload,
+      },
+    ],
+  };
 }

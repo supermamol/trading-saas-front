@@ -42,6 +42,7 @@ function initialWorkspace(): Workspace {
       C2: c2,
       C3: c3,
     },
+    detached: []
   };
 }
 

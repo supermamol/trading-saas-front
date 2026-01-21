@@ -21,6 +21,7 @@ function workspace(containers: Container[]): Workspace {
     containers: Object.fromEntries(
       containers.map(c => [c.id, c])
     ),
+    detached: [], // ✅ toujours initialisé
   };
 }
 
@@ -47,6 +48,9 @@ describe("DnD tab-centric model", () => {
     // C2 contient maintenant B + A
     expect(next.containers["C2"].tabs.map(t => t.id))
       .toEqual(["B", "A"]);
+
+    // ✅ invariant
+    expect(next.detached).toHaveLength(0);
   });
 
   it("tab → hors entête (container > 1) : isolation", () => {
@@ -59,7 +63,6 @@ describe("DnD tab-centric model", () => {
     });
 
     const containers = Object.values(next.containers);
-
     expect(containers.length).toBe(2);
 
     const isolated = containers.find(c =>
@@ -67,20 +70,26 @@ describe("DnD tab-centric model", () => {
     )!;
 
     expect(isolated.tabs.map(t => t.id)).toEqual(["B"]);
+
+    // ✅ invariant
+    expect(next.detached).toHaveLength(0);
   });
 
   it("tab → hors entête (container = 1) : isolation (remplacement du container)", () => {
     const ws = workspace([
       container("C1", [tab("A")]),
     ]);
-  
+
     const next = handleTabDrop(ws, "A", {
       type: "outside",
     });
-  
+
     const containers = Object.values(next.containers);
     expect(containers.length).toBe(1);
     expect(containers[0].tabs.map(t => t.id)).toEqual(["A"]);
+
+    // ✅ invariant
+    expect(next.detached).toHaveLength(0);
   });
 
   it("container à 1 tab reste valide", () => {
@@ -97,6 +106,9 @@ describe("DnD tab-centric model", () => {
 
     expect(remaining).toBeDefined();
     expect(remaining!.tabs.map(t => t.id)).toEqual(["A"]);
+
+    // ✅ invariant
+    expect(next.detached).toHaveLength(0);
   });
 
 });
