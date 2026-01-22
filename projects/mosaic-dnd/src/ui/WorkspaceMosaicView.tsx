@@ -6,9 +6,9 @@ import {
 import type { Workspace } from "../model/workspace";
 import type { Container } from "../model/container";
 import { activateTab } from "../model/container";
-import { closeTab } from "../model/workspace";
-import { detachPanel } from "../model/workspace.panels";
+import { closeTab, detachTab } from "../model/workspace";
 import { ContainerView, type SplitTarget } from "./ContainerView";
+import type { PanelKind, PanelContext } from "../model/workspace.panels";
 
 /* ======================================================
  * Types
@@ -22,12 +22,17 @@ export type WorkspaceState = {
 type Props = {
   state: WorkspaceState;
   onStateChange: (updater: (s: WorkspaceState) => WorkspaceState) => void;
-
   hoveredContainerId: string | null;
-
-  // 🔑 ajouté
   onSplitZoneChange: (split: SplitTarget) => void;
+
+  // ✅ AJOUT
+  createPanel: (
+    kind: PanelKind,
+    context?: PanelContext,
+    placement?: { zone: VerticalZone; slot: HorizontalSlot }
+  ) => void;
 };
+
 
 /* ======================================================
  * Utils
@@ -69,6 +74,7 @@ export function WorkspaceMosaicView({
   onStateChange,
   hoveredContainerId,
   onSplitZoneChange,
+  createPanel, // ✅
 }: Props) {
   const { workspace, layout } = state;
 
@@ -124,6 +130,7 @@ export function WorkspaceMosaicView({
           container={container}
           hoveredContainerId={hoveredContainerId}
           onSplitZoneChange={onSplitZoneChange}
+          createPanel={createPanel}   // ✅ AJOUT
           onSelectTab={(cid, tabId) =>
             onStateChange((s) => {
               const c = s.workspace.containers[cid];
@@ -153,7 +160,7 @@ export function WorkspaceMosaicView({
           onDetachTab={(tab) =>
             onStateChange((s) => ({
               ...s,
-              workspace: detachPanel(s.workspace, tab),
+              workspace: detachTab(s.workspace, tab.id),
             }))
           }
         />

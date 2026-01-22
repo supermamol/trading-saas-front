@@ -1614,12 +1614,10 @@ C’est cohérent avec :
 
 --------------------------------------------------------
 
-Comportement CREATE avec containers mixtes
-""""""""""""""""""""""""""""""""""""""""""
+Comportement CREATE 
+"""""""""""""""""""
 
-Oui — après un MOVE, tu peux te retrouver avec un container “mixte” : même kind, payloads différents. Du coup, CREATE doit définir une stratégie de sélection de container (sinon il devient non-déterministe / surprenant).
-
-Quand tu fais openPanel(kind, payload) (GroupKey = kind + payload), tu choisis un seul container cible selon cette priorité :
+Quand tu fais openPanel(kind, payload, direction), tu choisis un seul container cible selon cette priorité :
 
     Container “pur” exact
     → tous les tabs du container ont exactement le même (kind + payload) que le nouveau tab.
@@ -1634,20 +1632,7 @@ Quand tu fais openPanel(kind, payload) (GroupKey = kind + payload), tu choisis u
     ✅ fallback “rassemblement manuel post-MOVE”, cohérent avec votre philosophie.
 
     Sinon
-    → créer un nouveau container et l’insérer via le zonage par défaut (puisque “aucun container de ce kind n’existe” est faux ici si on a un container de ce kind ; donc le zonage par défaut ne s’applique que si vraiment aucun container du kind n’existe).
-
-Le zonage vertical (HAUT / BAS) est prioritaire sur le zonage horizontal (GAUCHE / CENTRE / DROITE).
-
-COLUMN
-├── TOP (~60%)
-│   └── ROW
-│       ├── Nodered
-│       └── Charts
-└── BOTTOM (~40%)
-    └── ROW
-        ├── Strategies
-        ├── StrategyDetail
-        └── Runs
+    → Nouveau container et placement explicite relatif à fromContainerId, selon "direction"
 
 ------------------------------------------------------------
 

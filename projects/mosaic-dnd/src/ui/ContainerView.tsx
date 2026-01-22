@@ -4,6 +4,7 @@ import type { Container } from "../model/container";
 import type { Tab } from "../model/tab";
 import { ContainerHeaderView } from "./ContainerHeaderView";
 import { TabView } from "./TabView";
+import type { PanelKind, PanelContext } from "../model/workspace.panels";
 
 /* =============================
  * Types
@@ -34,17 +35,23 @@ function detectSplitZone(relX: number, relY: number): SplitZone {
 /* =============================
  * Component
  * ============================= */
+
 type Props = {
   container: Container;
   hoveredContainerId: string | null;
-
   onSelectTab: (containerId: string, tabId: string) => void;
   onCloseTab: (tabId: string) => void;
   onDetachTab: (tab: Tab) => void;
-
-  /** 🔑 Remonte la zone de split active au Provider */
   onSplitZoneChange: (split: SplitTarget) => void;
+
+  // ✅ OUI : relayé
+  createPanel: (
+    kind: PanelKind,
+    context?: PanelContext,
+    placement?: { zone: VerticalZone; slot: HorizontalSlot }
+  ) => void;
 };
+
 
 export function ContainerView({
   container,
@@ -53,7 +60,9 @@ export function ContainerView({
   onCloseTab,
   onDetachTab,
   onSplitZoneChange,
+  createPanel, // ✅ FIX : manquait ici
 }: Props) {
+
   const containerRef = useRef<HTMLDivElement | null>(null);
 
   const { setNodeRef } = useDroppable({
@@ -158,7 +167,10 @@ export function ContainerView({
       />
 
       <div className="container-panel" style={{ flex: 1 }}>
-        <TabView tab={activeTab} />
+        <TabView
+          tab={activeTab}
+          createPanel={createPanel}
+        />
       </div>
     </div>
   );

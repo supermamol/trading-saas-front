@@ -1,16 +1,12 @@
 import type { ContainerId } from "./ids";
 import type { Container } from "./container";
 import { pushTab } from "./container";
-
 import type { Workspace } from "./workspace";
-import { findContainerByTab, closeTab } from "./workspace";
-
 import type { Tab } from "./tab";
 
 /* ======================================================
  * Types métier Panels
  * ====================================================== */
-
 export type PanelKind =
   | "Strategies"
   | "StrategyDetail"
@@ -27,13 +23,11 @@ type GroupKey = {
   strategyId?: string;
 };
 
-// Tant que `Container` n’expose pas (encore) `groupKey` dans son type
 type ContainerWithGroupKey = Container & { groupKey?: GroupKey };
 
 /* ======================================================
  * Id generators (dev)
  * ====================================================== */
-
 let nextContainerId = 1;
 let nextTabId = 1;
 
@@ -41,7 +35,7 @@ function makeTab(kind: PanelKind, context: PanelContext = {}): Tab {
   return {
     id: `tab-${nextTabId++}` as any,
     kind,
-    payload: context, // ✅ aligné sur Tab.payload
+    payload: context,
   };
 }
 
@@ -53,121 +47,98 @@ function groupKeyFor(kind: PanelKind, context: PanelContext = {}): GroupKey {
 }
 
 /* ======================================================
- * API publique
+ * Résultat CREATE (clé pour le layout)
  * ====================================================== */
+export type OpenPanelResult = {
+  workspace: Workspace;
+  createdContainerId: ContainerId | null;
+};
 
-/**
- * Ouvre un panel selon les règles métier :
- * - calcul GroupKey
- * - regroupement ou création
- * - délègue aux opérations sur tabs
- */
- export function openPanel(
+/* ======================================================
+ * API CREATE — modèle pur (AUCUN layout ici)
+ * ====================================================== */
+export function openPanel(
   workspace: Workspace,
   kind: PanelKind,
   context: PanelContext = {}
-): Workspace {
+): OpenPanelResult {
   const tab = makeTab(kind, context);
-  const targetStrategyId = context.strategyId;
+  const groupKey = groupKeyFor(kind, context);
+  const containers = Object.values(workspace.containers);
 
-  const containers = Object.values(workspace.containers)
-    .slice()
-    .sort((a, b) => a.id.localeCompare(b.id));
+  const sameExact = (t: Tab) =>
+    t.kind === kind && t.payload?.strategyId === context.strategyId;
 
-  // helpers
-  const sameGroupKey = (t: Tab) =>
-    t.kind === kind &&
-    t.payload?.strategyId === targetStrategyId;
+  const sameKind = (t: Tab) => t.kind === kind;
 
-  const sameKind = (t: Tab) =>
-    t.kind === kind;
-
-  // 1️⃣ container "pur exact"
-  const pureExact = containers.find(c =>
-    c.tabs.every(t => sameGroupKey(t))
+  // 1️⃣ container exact
+  const exact = containers.find(c =>
+    c.tabs.every(t => sameExact(t))
   );
-  if (pureExact) {
+  if (exact) {
     return {
-      ...workspace,
-      containers: {
-        ...workspace.containers,
-        [pureExact.id]: pushTab(pureExact, tab),
+      workspace: {
+        ...workspace,
+        containers: {
+          ...workspace.containers,
+          [exact.id]: pushTab(exact, tab),
+        },
       },
+      createdContainerId: null,
     };
   }
 
-  // 2️⃣ container "contient exact"
+  // 2️⃣ container contenant exact
   const containsExact = containers.find(c =>
-    c.tabs.some(t => sameGroupKey(t))
+    c.tabs.some(t => sameExact(t))
   );
   if (containsExact) {
     return {
-      ...workspace,
-      containers: {
-        ...workspace.containers,
-        [containsExact.id]: pushTab(containsExact, tab),
+      workspace: {
+        ...workspace,
+        containers: {
+          ...workspace.containers,
+          [containsExact.id]: pushTab(containsExact, tab),
+        },
       },
+      createdContainerId: null,
     };
   }
 
-  // 3️⃣ container "contient kind"
+  // 3️⃣ container contenant kind
   const containsKind = containers.find(c =>
     c.tabs.some(t => sameKind(t))
   );
   if (containsKind) {
     return {
-      ...workspace,
-      containers: {
-        ...workspace.containers,
-        [containsKind.id]: pushTab(containsKind, tab),
+      workspace: {
+        ...workspace,
+        containers: {
+          ...workspace.containers,
+          [containsKind.id]: pushTab(containsKind, tab),
+        },
       },
+      createdContainerId: null,
     };
   }
 
-  // 4️⃣ aucun container compatible → nouveau container
+  // 4️⃣ création d’un nouveau container
   const containerId = `container-${nextContainerId++}` as ContainerId;
 
   const newContainer: ContainerWithGroupKey = {
     id: containerId,
-    groupKey: {
-      kind,
-      strategyId: targetStrategyId,
-    },
+    groupKey,
     tabs: [tab],
   };
 
   return {
-    ...workspace,
-    containers: {
-      ...workspace.containers,
-      [containerId]: newContainer,
+    workspace: {
+      ...workspace,
+      containers: {
+        ...workspace.containers,
+        [containerId]: newContainer,
+      },
     },
+    createdContainerId: containerId,
   };
 }
-
-/**
- * DETACH = sortie hors workspace → ajout dans workspace.detached[]
- * (la fenêtre / UI est gérée ailleurs)
- */
- export function detachPanel(
-  workspace: Workspace,
-  tab: Tab
-): Workspace {
-  const source = findContainerByTab(workspace, tab.id);
-  if (!source) {
-    throw new Error(`Tab ${tab.id} not found in workspace`);
-  }
-
-  const detachedPanel = {
-    kind: tab.kind as PanelKind,
-    context: tab.payload ?? {},   // ✅ FIX CRITIQUE
-  };
-
-  const nextWorkspace = closeTab(workspace, tab.id);
-
-  return {
-    ...nextWorkspace,
-    detached: [...nextWorkspace.detached, detachedPanel],
-  };
-}
-
