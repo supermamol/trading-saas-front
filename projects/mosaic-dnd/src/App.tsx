@@ -1,3 +1,4 @@
+// src/App.tsx
 import "react-mosaic-component/react-mosaic-component.css";
 import { useEffect, useState } from "react";
 
@@ -27,34 +28,48 @@ import {
 import { WorkspaceDnDProvider } from "./ui/WorkspaceDnDProvider";
 
 /* =========================
- * Placement CREATE
+ * CREATE – API MÉTIER
  * ========================= */
-function placementForKind(
-  kind: PanelKind
+export type CreateDirection = "top" | "bottom" | "left" | "right";
+
+/**
+ * Traduction MÉTIER → Mosaic
+ * (SEUL endroit où zone/slot existent)
+ */
+function placementFromDirection(
+  dir: CreateDirection
 ): { zone: VerticalZone; slot: HorizontalSlot } {
-  switch (kind) {
-    case "Nodered":
-      return { zone: "top", slot: "left" };
-    case "Chart":
+  switch (dir) {
+    case "top":
       return { zone: "top", slot: "center" };
-    case "Run":
-      return { zone: "top", slot: "right" };
-    case "Strategies":
-      return { zone: "bottom", slot: "left" };
-    case "StrategyDetail":
+    case "bottom":
       return { zone: "bottom", slot: "center" };
-    default:
+    case "left":
+      return { zone: "top", slot: "left" };
+    case "right":
       return { zone: "top", slot: "right" };
   }
 }
 
-function slotForContainerId(
-  workspace: Workspace,
-  id: string
-): HorizontalSlot | null {
-  const c = workspace.containers[id];
-  if (!c) return null;
-  return placementForKind(c.tabs[0].kind as PanelKind).slot;
+/**
+ * Slot visuel “naturel” d’un container EXISTANT
+ * (sert uniquement à l’insertion relative)
+ */
+function slotForContainerKind(kind: PanelKind): HorizontalSlot {
+  switch (kind) {
+    case "Nodered":
+      return "left";
+    case "Chart":
+      return "center";
+    case "Run":
+      return "right";
+    case "Strategies":
+      return "left";
+    case "StrategyDetail":
+      return "center";
+    default:
+      return "center";
+  }
 }
 
 /* =========================
@@ -81,52 +96,59 @@ export default function App() {
    * ====================================== */
   useEffect(() => {
     setState((s) => {
-      if (Object.keys(s.workspace.containers).length > 0) return s;
+      if (Object.keys(s.workspace.containers).length > 0) {
+        return s;
+      }
 
-      const { workspace, createdContainerId } = openPanel(
-        s.workspace,
-        "Strategies"
-      );
+      const result = openPanel(s.workspace, "Strategies");
+
+      if (!result.createdContainerId) {
+        return { ...s, workspace: result.workspace };
+      }
 
       return {
-        workspace,
-        layout: createdContainerId
-          ? ensureVerticalRootLayout(createdContainerId)
-          : s.layout,
+        workspace: result.workspace,
+        layout: ensureVerticalRootLayout(result.createdContainerId),
       };
     });
   }, []);
 
   /* ======================================
-   * CREATE PANEL (SOURCE UNIQUE)
+   * CREATE PANEL (API PUBLIQUE)
    * ====================================== */
   function createPanel(
     kind: PanelKind,
     context: PanelContext = {},
-    placement?: { zone: VerticalZone; slot: HorizontalSlot }
+    direction: CreateDirection = "right"
   ) {
     setState((s) => {
       const beforeIds = Object.keys(s.workspace.containers);
 
-      const { workspace: nextWorkspace, createdContainerId } =
-        openPanel(s.workspace, kind, context);
+      const result = openPanel(s.workspace, kind, context);
+      const nextWorkspace = result.workspace;
 
-      // 🔁 Aucun nouveau container → simple update métier
-      if (!createdContainerId) {
+      const afterIds = Object.keys(nextWorkspace.containers);
+      const newContainerId = afterIds.find(
+        (id) => !beforeIds.includes(id)
+      );
+
+      // 👉 regroupement : pas de nouveau container
+      if (!newContainerId) {
         return { ...s, workspace: nextWorkspace };
       }
 
-      const { zone, slot } =
-        placement ?? placementForKind(kind);
-
+      const { zone, slot } = placementFromDirection(direction);
       const root = ensureVerticalRootLayout(s.layout);
 
       const nextLayout = insertInZoneAndSlot(
         root,
         zone,
         slot,
-        createdContainerId,
-        (id) => slotForContainerId(nextWorkspace, id)
+        newContainerId,
+        (id) =>
+          slotForContainerKind(
+            nextWorkspace.containers[id].tabs[0].kind as PanelKind
+          )
       );
 
       return {
@@ -134,7 +156,7 @@ export default function App() {
         layout: nextLayout,
       };
     });
-  }  
+  }
 
   /* ======================================
    * DEBUG DEV
@@ -147,7 +169,13 @@ export default function App() {
    * RENDER
    * ====================================== */
   return (
-    <div style={{ height: "100vh", padding: 8 }}>
+    <div
+      style={{
+        height: "100vh",
+        padding: 8,
+        background: "#f3f4f6",
+      }}
+    >
       <WorkspaceDnDProvider state={state} onStateChange={setState}>
         {(hoveredContainerId, onSplitZoneChange) => (
           <WorkspaceMosaicView
@@ -155,7 +183,7 @@ export default function App() {
             onStateChange={setState}
             hoveredContainerId={hoveredContainerId}
             onSplitZoneChange={onSplitZoneChange}
-            createPanel={createPanel} // ✅ injection unique
+            createPanel={createPanel}
           />
         )}
       </WorkspaceDnDProvider>
