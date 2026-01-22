@@ -1668,4 +1668,85 @@ Si un nouveau container est créé :
 | `"top"`    | nouveau container au-dessus  |
 | `"bottom"` | nouveau container en dessous |
 
+=====================================================================
+===========                RESTE A FAIRE                =============
+=====================================================================
+
+🧭 Travaux logiques à la suite (par ordre de valeur)
+1️⃣ Stabilisation & formalisation du modèle (prioritaire)
+
+Avant de repartir sur du UI :
+
+    🔒 Figurer explicitement l’“activeContainerId”
+
+        aujourd’hui implicite / dérivé
+
+        demain : clair, contrôlé, testable
+
+    📐 Formaliser la règle CREATE (doc + tests)
+
+        regroupement → ignore direction
+
+        création → relatif au container source
+
+        1 règle canonique, écrite noir sur blanc
+
+    🧪 Tests métier CREATE + placement
+
+        sans React
+
+        sans Mosaic
+
+        juste workspace + layout abstrait
+
+👉 Objectif : le frontend devient interchangeable.
+2️⃣ Layout “de base” intentionnel (UX, pas technique)
+
+L’idée que tu évoques est très bonne :
+
+    un layout initial orienté usage (ex: colonne centrale StrategyDetail, satellites Charts / Runs),
+
+    mais jamais bloquant.
+
+Deux options propres :
+
+    soit un preset initial (1 seul, simple),
+
+    soit plusieurs presets plus tard (profil user).
+
+👉 À faire après que le modèle soit figé.
+3️⃣ Sérialisation / persistance du Workspace
+
+C’est le gros morceau “produit” :
+
+    💾 sauvegarde du workspace (containers + layout)
+
+    🔁 restauration exacte à l’ouverture
+
+    🌍 partage / duplication (plus tard)
+
+À ce stade ton modèle est déjà prêt pour ça.
+4️⃣ Detached panels / vues externes
+
+Tu as déjà la notion de detached :
+
+    popup / fenêtre secondaire,
+
+    vue plein écran,
+
+    retour dans le workspace.
+
+C’est une feature différenciante forte.
+5️⃣ Frontend “confort”
+
+Uniquement quand tout le reste est stable :
+
+    raccourcis clavier (CREATE, CLOSE, FOCUS),
+
+    animations légères,
+
+    affordances visuelles (ghost panels, previews).
+
+
+
 
