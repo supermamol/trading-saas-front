@@ -1636,3 +1636,36 @@ Quand tu fais openPanel(kind, payload, direction), tu choisis un seul container 
 
 ------------------------------------------------------------
 
+2️⃣ Règle de regroupement (prioritaire)
+
+Quand on fait CREATE :
+
+    🔍 On cherche un container compatible (affinité décroissante) :
+
+        même kind + même contexte → priorité
+
+        sinon même kind
+
+    ✅ Si trouvé
+    → on push le tab dans ce container
+    → PAS de nouveau container
+    → PAS de modification du layout
+
+    ❌ Si aucun container compatible
+    → on crée un nouveau container
+
+👉 Cette règle est indépendante de la direction
+👉 La direction ne sert que si un nouveau container est créé
+3️⃣ Règle de placement (UI uniquement)
+
+Si un nouveau container est créé :
+
+    la direction est traduite en placement Mosaic :
+| Direction  | Effet visuel                 |
+| ---------- | ---------------------------- |
+| `"left"`   | nouveau container à gauche   |
+| `"right"`  | nouveau container à droite   |
+| `"top"`    | nouveau container au-dessus  |
+| `"bottom"` | nouveau container en dessous |
+
+
