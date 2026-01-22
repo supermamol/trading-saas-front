@@ -9,7 +9,8 @@
  }
  
  /* ======================================================
-  * Mosaic layout fixes (CRUCIAL pour le scroll)
+  * Mosaic layout fixes
+  * (CRUCIAL pour le scroll + sizing correct)
   * ====================================================== */
  .mosaic,
  .mosaic-window,
@@ -43,10 +44,8 @@
    flex-direction: column;
    height: 100%;
    min-height: 0; /* 🔥 indispensable pour le scroll */
- 
    box-sizing: border-box;
    padding: 8px;
- 
    background: #f4f2de;
    border: 1px solid #d1d5db;
    border-radius: 6px;
@@ -55,21 +54,33 @@
  /* ======================================================
   * Tablist (onglets)
   * ====================================================== */
+ :root {
+   --tab-height: 24px;
+ }
+ 
  .tablist {
    display: flex;
    gap: 4px;
  }
  
  .tab {
-   padding: 4px 10px;
+   height: var(--tab-height);
+   min-width: var(--tab-height);
+   padding: 0 8px;
  
-   font-size: 0.9rem;
+   display: inline-flex;
+   align-items: center;
+   justify-content: center;
+ 
+   font-size: 13px;
+   line-height: 1;
+ 
    cursor: pointer;
- 
    background: #efd9cb;
    border: 1px solid #bbb;
    border-bottom: none;
    border-radius: 4px 4px 0 0;
+   box-sizing: border-box;
  }
  
  .tab--active {
@@ -93,16 +104,14 @@
    display: flex;
    align-items: center;
    justify-content: space-between;
- 
    height: 28px;
    padding: 0 8px;
    box-sizing: border-box;
- 
    background: #f9fafb;
    border-bottom: 1px solid #d1d5db;
  }
  
- /* Zone drag (future poignée DnD) */
+ /* Zone drag (poignée DnD) */
  .tab-view-title {
    font-size: 0.85rem;
    font-weight: 500;
@@ -126,7 +135,7 @@
   * ====================================================== */
  .tab-view-content {
    flex: 1;
-   min-height: 0;        /* 🔥 indispensable */
+   min-height: 0; /* 🔥 indispensable */
    padding: 12px;
    overflow-y: auto;
  }
@@ -135,63 +144,105 @@
  .tab-view-placeholder {
    margin-top: 12px;
    padding: 12px;
- 
    background: #f8fafc;
    border: 1px dashed #cbd5f5;
  }
+ 
+ /* ======================================================
+  * Container header
+  * ====================================================== */
  .container-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 4px 8px;
-  background: #dbeafe;
-  border-bottom: 1px solid #c7d2fe;
-}
-
-.tab-actions {
-  display: flex;
-  gap: 6px;
-  align-items: center;
-}
-
-.tab-actions button {
-  font-size: 0.75rem;
-  padding: 2px 6px;
-}
-
-:root {
-  --tab-height: 24px;
-}
-
-.tab {
-  height: var(--tab-height);
-  min-width: var(--tab-height);
-  padding: 0 8px;
-
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-
-  font-size: 13px;
-  line-height: 1;
-
-  border-radius: 4px;
-  box-sizing: border-box;
-}
-
-.container-header .tab-actions button {
-  height: var(--tab-height);
-  width: var(--tab-height);
-
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-
-  padding: 0;
-  margin-left: 4px;
-
-  font-size: 13px;
-  line-height: 1;
-
-  border-radius: 4px;
-}
+   display: flex;
+   align-items: center;
+   justify-content: space-between;
+   padding: 4px 8px;
+   background: #dbeafe;
+   border-bottom: 1px solid #c7d2fe;
+ }
+ 
+ .tab-actions {
+   display: flex;
+   gap: 6px;
+   align-items: center;
+ }
+ 
+ .tab-actions button {
+   height: var(--tab-height);
+   width: var(--tab-height);
+ 
+   display: inline-flex;
+   align-items: center;
+   justify-content: center;
+ 
+   padding: 0;
+   margin-left: 4px;
+ 
+   font-size: 13px;
+   line-height: 1;
+   border-radius: 4px;
+ }
+ 
+ /* ======================================================
+  * Split overlay (DnD)
+  * ====================================================== */
+ 
+ /* Overlay couvrant TOUT le container */
+ .split-overlay {
+   position: absolute;
+   inset: 0;
+   pointer-events: none; /* 🔐 jamais bloquer le DnD */
+   z-index: 20;
+ }
+ 
+ /*
+  * Base des zones split
+  * - présentes mais invisibles
+  * - seule .active apparaît
+  */
+ .split-zone {
+   position: absolute;
+   box-sizing: border-box;
+ 
+   border: 2px dashed rgba(0, 0, 0, 0.35);
+   background: rgba(239, 68, 68, 0.25);
+ 
+   opacity: 0; /* invisible par défaut */
+   transition: opacity 0.15s ease, background 0.15s ease;
+ 
+   pointer-events: none;
+ }
+ 
+ .split-zone.active {
+   opacity: 0.45;
+   outline: 2px solid #2563eb;
+ }
+ 
+ /* Géométrie (zones larges = UX indulgente) */
+ .split-top {
+   top: 0;
+   left: 0;
+   right: 0;
+   height: 50%;
+ }
+ 
+ .split-bottom {
+   bottom: 0;
+   left: 0;
+   right: 0;
+   height: 50%;
+ }
+ 
+ .split-left {
+   top: 0;
+   bottom: 0;
+   left: 0;
+   width: 50%;
+ }
+ 
+ .split-right {
+   top: 0;
+   bottom: 0;
+   right: 0;
+   width: 50%;
+ }
+ 

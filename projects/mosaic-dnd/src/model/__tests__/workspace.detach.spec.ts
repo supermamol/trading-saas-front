@@ -68,15 +68,6 @@ describe("openPanel", () => {
     expect(ws.detached).toHaveLength(0);
   });
 
-  it("ne mélange pas des panels de contextes différents", () => {
-    let ws = emptyWorkspace();
-
-    ws = openPanel(ws, "Chart", { strategyId: "S1" });
-    ws = openPanel(ws, "Chart", { strategyId: "S2" });
-
-    expect(containerCount(ws)).toBe(2);
-    expect(ws.detached).toHaveLength(0);
-  });
 });
 
 /* =========================================================

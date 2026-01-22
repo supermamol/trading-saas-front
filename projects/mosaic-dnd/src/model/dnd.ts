@@ -13,14 +13,19 @@ import {
  * Types DnD
  * ====================================================== */
 
+export type SplitZone = "top" | "bottom" | "left" | "right";
+
 export type DropTarget =
   | {
-      type: "container";   // MOVE
+      type: "container";
       containerId: ContainerId;
     }
   | {
-      type: "split";       // ISOLATE
+      type: "split";
+      containerId: ContainerId;
+      zone: SplitZone;
     };
+
 
 /* ======================================================
  * Intention DnD → Action métier

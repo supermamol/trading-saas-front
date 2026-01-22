@@ -7,16 +7,26 @@ import {
   type DragStartEvent,
 } from "@dnd-kit/core";
 import { useEffect, useRef, useState, type ReactNode } from "react";
-
 import type { Workspace } from "../model/workspace";
+import { findContainerByTab, isolateTab } from "../model/workspace";
 import { moveTab } from "../model/workspace.move";
-import { findContainerByTab } from "../model/workspace";
 import { canGroup } from "../model/canGroup";
+import type { MosaicNode } from "react-mosaic-component";
+import { splitLayoutAtPath } from "./mosaicLayout";
+import type { SplitTarget, SplitZone } from "./ContainerView";
+
+type WorkspaceState = {
+  workspace: Workspace;
+  layout: MosaicNode<string> | null;
+};
 
 type Props = {
-  state: { workspace: Workspace };
-  onStateChange: (updater: (s: any) => any) => void;
-  children: (hoveredContainerId: string | null) => ReactNode;
+  state: WorkspaceState;
+  onStateChange: (updater: (s: WorkspaceState) => WorkspaceState) => void;
+  children: (
+    hoveredContainerId: string | null,
+    onSplitZoneChange: (split: SplitTarget) => void
+  ) => ReactNode;
 };
 
 function getTabById(workspace: Workspace, tabId: string) {
@@ -24,15 +34,46 @@ function getTabById(workspace: Workspace, tabId: string) {
   return source?.tabs.find((t) => t.id === tabId) ?? null;
 }
 
+function pruneLayout(
+  node: MosaicNode<string> | null,
+  validIds: Set<string>
+): MosaicNode<string> | null {
+  if (!node) return null;
+  if (typeof node === "string") {
+    return validIds.has(node) ? node : null;
+  }
+  const first = pruneLayout(node.first, validIds);
+  const second = pruneLayout(node.second, validIds);
+  if (!first && !second) return null;
+  if (!first) return second;
+  if (!second) return first;
+  return { ...node, first, second };
+}
+
+function directionForZone(zone: SplitZone): "row" | "column" {
+  return zone === "left" || zone === "right" ? "row" : "column";
+}
+
+function insertForZone(zone: SplitZone): "before" | "after" {
+  return zone === "left" || zone === "top" ? "before" : "after";
+}
+
 export function WorkspaceDnDProvider({ state, onStateChange, children }: Props) {
   const [hoveredContainerId, setHoveredContainerId] = useState<string | null>(null);
   const [draggedTabId, setDraggedTabId] = useState<string | null>(null);
 
-  // ✅ garantit un accès au workspace le plus récent pendant un drag
-  const workspaceRef = useRef(state.workspace);
+  // Toujours le workspace/layout le plus récent pendant un drag
+  const stateRef = useRef(state);
   useEffect(() => {
-    workspaceRef.current = state.workspace;
-  }, [state.workspace]);
+    stateRef.current = state;
+  }, [state]);
+
+  // 🔑 split courant (remonté par ContainerView via onSplitZoneChange)
+  const splitTargetRef = useRef<SplitTarget>(null);
+
+  const onSplitZoneChange = (split: SplitTarget) => {
+    splitTargetRef.current = split;
+  };
 
   function handleDragStart(event: DragStartEvent) {
     const data = event.active.data.current;
@@ -42,17 +83,16 @@ export function WorkspaceDnDProvider({ state, onStateChange, children }: Props) 
   function handleDragMove(event: DragMoveEvent) {
     const overData = event.over?.data.current;
 
-    // par défaut : pas de zone (Option C)
     if (overData?.type !== "container" || !draggedTabId) {
       setHoveredContainerId(null);
       return;
     }
 
-    const ws = workspaceRef.current;
+    const ws = stateRef.current.workspace;
     const tab = getTabById(ws, draggedTabId);
     const target = ws.containers[overData.containerId];
 
-    // ✅ drop zone visible uniquement si compatible
+    // zone visible uniquement si compatible (même kind)
     if (tab && target && canGroup(tab, target)) {
       setHoveredContainerId(overData.containerId);
     } else {
@@ -61,8 +101,12 @@ export function WorkspaceDnDProvider({ state, onStateChange, children }: Props) 
   }
 
   function handleDragEnd(event: DragEndEvent) {
+    // IMPORTANT: on capture la valeur AVANT de reset (sinon tu vois null au drop)
+    const splitTarget = splitTargetRef.current;
+
     setHoveredContainerId(null);
     setDraggedTabId(null);
+    splitTargetRef.current = null;
 
     const { active, over } = event;
     if (!over) return;
@@ -76,15 +120,58 @@ export function WorkspaceDnDProvider({ state, onStateChange, children }: Props) 
     const fromContainerId = activeData.fromContainerId as string;
     const toContainerId = overData.containerId as string;
 
+    const { workspace: ws0, layout: layout0 } = stateRef.current;
+
+    const tab = getTabById(ws0, tabId);
+    const target = ws0.containers[toContainerId];
+    if (!tab || !target) return;
+
+    // 🔒 compat au drop
+    if (!canGroup(tab, target)) return;
+
+    // === SPLIT DROP ===
+    if (splitTarget && splitTarget.containerId === toContainerId) {
+      // cas "split dans le même container" : si container=1 tab => impossible (cible disparaîtrait)
+      const source = findContainerByTab(ws0, tabId);
+      if (!source) return;
+      if (source.id === toContainerId && source.tabs.length === 1) {
+        return; // no-op safe
+      }
+
+      onStateChange((s) => {
+        // 1) isoler le tab → nouveau container (métier)
+        const { workspace: ws1, newContainerId } = isolateTab(s.workspace, tabId);
+
+        // 2) prune layout (source peut avoir été dissous)
+        const validIds = new Set(Object.keys(ws1.containers));
+        const pruned = pruneLayout(s.layout, validIds);
+
+        // 3) split Mosaic autour du container cible
+        const dir = directionForZone(splitTarget.zone);
+        const ins = insertForZone(splitTarget.zone);
+
+        const nextLayout = splitLayoutAtPath(
+          pruned,
+          toContainerId,
+          newContainerId,
+          dir,
+          ins
+        );
+
+        return {
+          ...s,
+          workspace: ws1,
+          layout: nextLayout,
+        };
+      });
+
+      return;
+    }
+
+    // === HEADER MOVE (merge) ===
     if (fromContainerId === toContainerId) return;
 
-    // 🔒 re-check compat au drop (sécurité)
-    const ws = workspaceRef.current;
-    const tab = getTabById(ws, tabId);
-    const target = ws.containers[toContainerId];
-    if (!tab || !target || !canGroup(tab, target)) return;
-
-    onStateChange((s: any) => ({
+    onStateChange((s) => ({
       ...s,
       workspace: moveTab(s.workspace, tabId, toContainerId),
     }));
@@ -93,6 +180,7 @@ export function WorkspaceDnDProvider({ state, onStateChange, children }: Props) 
   function handleDragCancel() {
     setHoveredContainerId(null);
     setDraggedTabId(null);
+    splitTargetRef.current = null;
   }
 
   return (
@@ -103,7 +191,7 @@ export function WorkspaceDnDProvider({ state, onStateChange, children }: Props) 
       onDragEnd={handleDragEnd}
       onDragCancel={handleDragCancel}
     >
-      {children(hoveredContainerId)}
+      {children(hoveredContainerId, onSplitZoneChange)}
 
       <DragOverlay dropAnimation={null}>
         {draggedTabId ? (

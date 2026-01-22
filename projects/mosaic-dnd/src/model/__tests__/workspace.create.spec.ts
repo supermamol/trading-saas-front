@@ -83,24 +83,18 @@ describe("CU CREATE — openPanel", () => {
     expect(ws.detached).toHaveLength(0);
   });
 
-  it("ne regroupe pas si le context (strategyId) est différent", () => {
+  it("regroupe par kind si aucun container exact n'existe", () => {
     let ws = emptyWorkspace();
-
     ws = openPanel(ws, "Chart", { strategyId: "S1" });
     ws = openPanel(ws, "Chart", { strategyId: "S2" });
-
-    expect(containerCount(ws)).toBe(2);
-
-    const keys = containers(ws).map(c => c.groupKey);
-    expect(keys).toEqual(
-      expect.arrayContaining([
-        { kind: "Chart", strategyId: "S1" },
-        { kind: "Chart", strategyId: "S2" },
-      ])
-    );
-
-    expect(ws.detached).toHaveLength(0);
+  
+    expect(containerCount(ws)).toBe(1);
+  
+    const c = containers(ws)[0];
+    expect(c.tabs.map(t => t.payload?.strategyId))
+      .toEqual(["S1", "S2"]);
   });
+  
 
   it("crée toujours un tab actif (dernier de pile)", () => {
     let ws = emptyWorkspace();

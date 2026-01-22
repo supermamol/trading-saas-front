@@ -3,19 +3,17 @@ import {
   MosaicWindow,
   type MosaicNode,
 } from "react-mosaic-component";
-
 import type { Workspace } from "../model/workspace";
 import type { Container } from "../model/container";
 import { activateTab } from "../model/container";
 import { closeTab } from "../model/workspace";
 import { detachPanel } from "../model/workspace.panels";
-import { ContainerView } from "./ContainerView";
+import { ContainerView, type SplitTarget } from "./ContainerView";
 
 /* ======================================================
  * Types
  * ====================================================== */
 export type Layout = MosaicNode<string>;
-
 export type WorkspaceState = {
   workspace: Workspace;
   layout: MosaicNode<string> | null;
@@ -24,7 +22,11 @@ export type WorkspaceState = {
 type Props = {
   state: WorkspaceState;
   onStateChange: (updater: (s: WorkspaceState) => WorkspaceState) => void;
-  hoveredContainerId: string | null; // 👈 AJOUT
+
+  hoveredContainerId: string | null;
+
+  // 🔑 ajouté
+  onSplitZoneChange: (split: SplitTarget) => void;
 };
 
 /* ======================================================
@@ -33,7 +35,6 @@ type Props = {
 export function buildInitialLayout(containerIds: string[]): Layout | null {
   if (containerIds.length === 0) return null;
   if (containerIds.length === 1) return containerIds[0];
-
   return containerIds.slice(1).reduce<Layout>(
     (acc, id) => ({
       direction: "row",
@@ -49,18 +50,14 @@ function pruneLayout(
   validIds: Set<string>
 ): MosaicNode<string> | null {
   if (!node) return null;
-
   if (typeof node === "string") {
     return validIds.has(node) ? node : null;
   }
-
   const first = pruneLayout(node.first, validIds);
   const second = pruneLayout(node.second, validIds);
-
   if (!first && !second) return null;
   if (!first) return second;
   if (!second) return first;
-
   return { ...node, first, second };
 }
 
@@ -71,44 +68,29 @@ export function WorkspaceMosaicView({
   state,
   onStateChange,
   hoveredContainerId,
+  onSplitZoneChange,
 }: Props) {
   const { workspace, layout } = state;
 
-  /* Layout change = géométrie uniquement */
   const handleLayoutChange = (next: Layout | null) => {
     onStateChange(s => ({ ...s, layout: next }));
   };
 
-  /* Suppression d’un container (Mosaic ✕)
-   * = suppression métier + prune layout
-   */
   const handleRemove = (containerId: string) => {
     onStateChange((s) => {
-      // 1️⃣ suppression du container dans le workspace
-      const { [containerId]: _, ...remaining } =
-        s.workspace.containers;
-
-      // 2️⃣ ids valides pour le layout
+      const { [containerId]: _, ...remaining } = s.workspace.containers;
       const validIds = new Set(Object.keys(remaining));
-
-      // 3️⃣ prune du layout
       const nextLayout = pruneLayout(s.layout, validIds);
-
       return {
         ...s,
-        workspace: {
-          ...s.workspace,
-          containers: remaining,
-        },
+        workspace: { ...s.workspace, containers: remaining },
         layout: nextLayout,
       };
     });
   };
 
-  /* Rendu d’un tile */
   const renderTile = (containerId: string, path: any) => {
-    const container: Container | undefined =
-      workspace.containers[containerId];
+    const container: Container | undefined = workspace.containers[containerId];
 
     if (!container) {
       return (
@@ -134,56 +116,40 @@ export function WorkspaceMosaicView({
             }}
           >
             <span>{`Container ${containerId}`}</span>
-            {props.onRemove && (
-              <button onClick={props.onRemove}>×</button>
-            )}
+            {props.onRemove && <button onClick={props.onRemove}>×</button>}
           </div>
         )}
       >
         <ContainerView
           container={container}
           hoveredContainerId={hoveredContainerId}
-
-          /* =============================
-           * SELECT TAB (CU)
-           * ============================= */
-          onSelectTab={(containerId, tabId) =>
+          onSplitZoneChange={onSplitZoneChange}
+          onSelectTab={(cid, tabId) =>
             onStateChange((s) => {
-              const container = s.workspace.containers[containerId];
-              const nextContainer = activateTab(container, tabId);
-
+              const c = s.workspace.containers[cid];
               return {
                 ...s,
                 workspace: {
                   ...s.workspace,
                   containers: {
                     ...s.workspace.containers,
-                    [containerId]: nextContainer,
+                    [cid]: activateTab(c, tabId),
                   },
                 },
               };
             })
           }
-
-          /* =============================
-           * CLOSE TAB (CU)
-           * ============================= */
           onCloseTab={(tabId) =>
             onStateChange((s) => {
-              const nextWorkspace = closeTab(s.workspace, tabId);
-              const validIds = new Set(Object.keys(nextWorkspace.containers));
-
+              const next = closeTab(s.workspace, tabId);
+              const validIds = new Set(Object.keys(next.containers));
               return {
                 ...s,
-                workspace: nextWorkspace,
+                workspace: next,
                 layout: pruneLayout(s.layout, validIds),
               };
             })
           }
-
-          /* =============================
-           * DETACH TAB (CU)
-           * ============================= */
           onDetachTab={(tab) =>
             onStateChange((s) => ({
               ...s,
