@@ -19,7 +19,6 @@ export function StrategyDetailView({
     <>
       <h3>StrategyDetail {strategyId}</h3>
 
-      <h4>Charts</h4>
       {["C1", "C2", "C3"].map((c) => (
         <button
           key={c}
@@ -35,8 +34,7 @@ export function StrategyDetailView({
         </button>
       ))}
 
-      <h4>Runs</h4>
-      {["R1", "R2", "R3"].map((r) => (
+     {["R1", "R2", "R3"].map((r) => (
         <button
           key={r}
           onClick={() =>
