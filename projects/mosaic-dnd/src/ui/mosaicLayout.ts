@@ -1,51 +1,43 @@
 // src/ui/mosaicLayout.ts
 import type { MosaicNode, MosaicParent } from "react-mosaic-component";
 
-/** Zones verticales (root column: top/bottom) */
+/* ======================================================
+ * Types
+ * ====================================================== */
+
+export type CreateDirection = "top" | "bottom" | "left" | "right";
 export type VerticalZone = "top" | "bottom";
-/** Slots horizontaux dans une zone (left/center/right) */
 export type HorizontalSlot = "left" | "center" | "right";
 
-type Slot = "left" | "center" | "right";
-const SLOT_ORDER: Slot[] = ["left", "center", "right"];
+/* ======================================================
+ * Helpers direction → Mosaic
+ * ====================================================== */
 
-/**
- * Split un layout Mosaic autour d’un container cible.
- * Utilisé par :
- * - CREATE(direction) (si tu fais du placement relatif)
- * - SPLIT DnD
- */
-export function splitLayoutAtPath(
-  layout: MosaicNode<string> | null,
-  targetId: string,
-  newId: string,
-  direction: "row" | "column",
-  insert: "before" | "after"
-): MosaicNode<string> | null {
-  if (!layout) return layout;
-
-  const replace = (node: MosaicNode<string>): MosaicNode<string> => {
-    if (node === targetId) {
-      const first = insert === "before" ? newId : targetId;
-      const second = insert === "before" ? targetId : newId;
-      return { direction, first, second } as MosaicParent<string>;
-    }
-    if (typeof node === "string") return node;
-
-    return {
-      ...node,
-      first: replace(node.first),
-      second: replace(node.second),
-    } as MosaicParent<string>;
-  };
-
-  return replace(layout);
+export function directionToMosaic(
+  direction: CreateDirection
+): { axis: "row" | "column"; insert: "before" | "after" } {
+  switch (direction) {
+    case "left":
+      return { axis: "row", insert: "before" };
+    case "right":
+      return { axis: "row", insert: "after" };
+    case "top":
+      return { axis: "column", insert: "before" };
+    case "bottom":
+      return { axis: "column", insert: "after" };
+  }
 }
 
+/* ======================================================
+ * Root layout helper (⬅️ CELUI QUI MANQUAIT)
+ * ====================================================== */
+
 /**
- * Garantit un root layout vertical (column).
- * - layout vide => column(first:null, second:null)
- * - layout non vertical => on le met en TOP par défaut
+ * Garantit que le layout racine est un layout vertical (column).
+ * - layout null      → column(null, null)
+ * - layout string    → column(layout, null)
+ * - layout column    → inchangé
+ * - layout row       → enveloppé dans une column
  */
 export function ensureVerticalRootLayout(
   layout: MosaicNode<string> | null
@@ -58,43 +50,105 @@ export function ensureVerticalRootLayout(
     return layout;
   }
 
-  return { direction: "column", first: layout, second: null };
+  return {
+    direction: "column",
+    first: layout,
+    second: null,
+  };
 }
 
+/* ======================================================
+ * Split bas niveau (autour d’un container précis)
+ * ====================================================== */
+
 /**
- * Insertion "zonée" : place un container dans (top/bottom) et approx (left/center/right)
- * en se basant sur une fonction getSlotForId(id).
+ * Split un layout Mosaic autour d’un container cible.
+ * Si la cible n’existe PAS dans le layout → append à droite (safety net).
+ */
+export function splitLayoutAtPath(
+  layout: MosaicNode<string> | null,
+  targetId: string,
+  newId: string,
+  direction: "row" | "column",
+  insert: "before" | "after"
+): MosaicNode<string> {
+  if (!layout) {
+    return newId;
+  }
+
+  let found = false;
+
+  const replace = (node: MosaicNode<string>): MosaicNode<string> => {
+    if (node === targetId) {
+      found = true;
+      const first = insert === "before" ? newId : targetId;
+      const second = insert === "before" ? targetId : newId;
+      return { direction, first, second } as MosaicParent<string>;
+    }
+
+    if (typeof node === "string") {
+      return node;
+    }
+
+    return {
+      ...node,
+      first: replace(node.first),
+      second: replace(node.second),
+    };
+  };
+
+  const next = replace(layout);
+
+  // 🔐 SAFETY NET : cible absente → append à droite
+  if (!found) {
+    return {
+      direction: "row",
+      first: layout,
+      second: newId,
+    };
+  }
+
+  return next;
+}
+
+/* ======================================================
+ * Insertion zonée (utilisée si TU le décides)
+ * ====================================================== */
+
+/**
+ * Insère un container dans une zone verticale
+ * et approximativement dans un slot horizontal.
  *
- * Important : c’est un placement *UI*, pas métier.
+ * ⚠️ UI only — pas une règle métier.
  */
 export function insertInZoneAndSlot(
-  root: MosaicParent<string>,
+  root: MosaicNode<string> | null,
   zone: VerticalZone,
   slot: HorizontalSlot,
   newId: string,
   getSlotForId: (id: string) => HorizontalSlot | null
-): MosaicParent<string> {
+): MosaicNode<string> {
+  const verticalRoot = ensureVerticalRootLayout(root);
   const zoneKey = zone === "top" ? "first" : "second";
-  const zoneNode = root[zoneKey];
+  const zoneNode = verticalRoot[zoneKey];
 
-  // Zone vide => insertion directe
   if (!zoneNode) {
-    return { ...root, [zoneKey]: newId };
+    return {
+      ...verticalRoot,
+      [zoneKey]: newId,
+    };
   }
 
-  // Collecte des ids existants dans la zone (ordre DFS)
-  const collect = (node: MosaicNode<string>, acc: string[]) => {
-    if (typeof node === "string") acc.push(node);
+  const ids: string[] = [];
+  const collect = (node: MosaicNode<string>) => {
+    if (typeof node === "string") ids.push(node);
     else {
-      collect(node.first, acc);
-      collect(node.second, acc);
+      collect(node.first);
+      collect(node.second);
     }
   };
+  collect(zoneNode);
 
-  const ids: string[] = [];
-  collect(zoneNode, ids);
-
-  // Trouver une ancre : 1er id dont le slot >= slot cible
   const order: HorizontalSlot[] = ["left", "center", "right"];
   const targetIndex = order.indexOf(slot);
 
@@ -107,17 +161,25 @@ export function insertInZoneAndSlot(
     }
   }
 
-  // Pas d’ancre => append à droite
   if (!anchor) {
     return {
-      ...root,
-      [zoneKey]: { direction: "row", first: zoneNode, second: newId },
+      ...verticalRoot,
+      [zoneKey]: {
+        direction: "row",
+        first: zoneNode,
+        second: newId,
+      },
     };
   }
 
-  // Insertion avant l’ancre (row)
   return {
-    ...root,
-    [zoneKey]: splitLayoutAtPath(zoneNode, anchor, newId, "row", "before"),
-  } as MosaicParent<string>;
+    ...verticalRoot,
+    [zoneKey]: splitLayoutAtPath(
+      zoneNode,
+      anchor,
+      newId,
+      "row",
+      "before"
+    ),
+  };
 }

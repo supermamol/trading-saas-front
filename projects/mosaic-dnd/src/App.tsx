@@ -19,62 +19,33 @@ import {
   WorkspaceMosaicView,
   type WorkspaceState,
 } from "./ui/WorkspaceMosaicView";
-import {
-  ensureVerticalRootLayout,
-  insertInZoneAndSlot,
-  type VerticalZone,
-  type HorizontalSlot,
-} from "./ui/mosaicLayout";
+
+import { splitLayoutAtPath } from "./ui/mosaicLayout";
 import { WorkspaceDnDProvider } from "./ui/WorkspaceDnDProvider";
 
 /* =========================
- * CREATE – API MÉTIER
+ * Types
  * ========================= */
 export type CreateDirection = "top" | "bottom" | "left" | "right";
 
-/**
- * Traduction MÉTIER → Mosaic
- * (SEUL endroit où zone/slot existent)
- */
-function placementFromDirection(
-  dir: CreateDirection
-): { zone: VerticalZone; slot: HorizontalSlot } {
-  switch (dir) {
-    case "top":
-      return { zone: "top", slot: "center" };
-    case "bottom":
-      return { zone: "bottom", slot: "center" };
-    case "left":
-      return { zone: "top", slot: "left" };
-    case "right":
-      return { zone: "top", slot: "right" };
-  }
-}
-
-/**
- * Slot visuel “naturel” d’un container EXISTANT
- * (sert uniquement à l’insertion relative)
- */
-function slotForContainerKind(kind: PanelKind): HorizontalSlot {
-  switch (kind) {
-    case "Nodered":
-      return "left";
-    case "Chart":
-      return "center";
-    case "Run":
-      return "right";
-    case "Strategies":
-      return "left";
-    case "StrategyDetail":
-      return "center";
-    default:
-      return "center";
-  }
-}
-
 /* =========================
- * Initial workspace
+ * Helpers
  * ========================= */
+function directionToMosaic(
+  dir: CreateDirection
+): { axis: "row" | "column"; insert: "before" | "after" } {
+  switch (dir) {
+    case "left":
+      return { axis: "row", insert: "before" };
+    case "right":
+      return { axis: "row", insert: "after" };
+    case "top":
+      return { axis: "column", insert: "before" };
+    case "bottom":
+      return { axis: "column", insert: "after" };
+  }
+}
+
 function emptyWorkspace(): Workspace {
   return {
     containers: {},
@@ -88,7 +59,7 @@ function emptyWorkspace(): Workspace {
 export default function App() {
   const [state, setState] = useState<WorkspaceState>(() => ({
     workspace: emptyWorkspace(),
-    layout: ensureVerticalRootLayout(null),
+    layout: null,
   }));
 
   /* ======================================
@@ -107,14 +78,15 @@ export default function App() {
       }
 
       return {
+        ...s,
         workspace: result.workspace,
-        layout: ensureVerticalRootLayout(result.createdContainerId),
+        layout: result.createdContainerId, // layout = id du 1er container
       };
     });
   }, []);
 
   /* ======================================
-   * CREATE PANEL (API PUBLIQUE)
+   * CREATE PANEL — règle canonique
    * ====================================== */
   function createPanel(
     kind: PanelKind,
@@ -122,36 +94,32 @@ export default function App() {
     direction: CreateDirection = "right"
   ) {
     setState((s) => {
-      const beforeIds = Object.keys(s.workspace.containers);
+      // fallback safe : on split par rapport au 1er container existant
+      const sourceContainerId = Object.keys(s.workspace.containers)[0] ?? null;
+      if (!sourceContainerId) return s;
 
       const result = openPanel(s.workspace, kind, context);
       const nextWorkspace = result.workspace;
 
-      const afterIds = Object.keys(nextWorkspace.containers);
-      const newContainerId = afterIds.find(
-        (id) => !beforeIds.includes(id)
-      );
-
-      // 👉 regroupement : pas de nouveau container
-      if (!newContainerId) {
+      // 1) REGROUPEMENT → layout inchangé
+      if (!result.createdContainerId) {
         return { ...s, workspace: nextWorkspace };
       }
 
-      const { zone, slot } = placementFromDirection(direction);
-      const root = ensureVerticalRootLayout(s.layout);
+      // 2) NOUVEAU CONTAINER → split relatif
+      const newContainerId = result.createdContainerId;
+      const { axis, insert } = directionToMosaic(direction);
 
-      const nextLayout = insertInZoneAndSlot(
-        root,
-        zone,
-        slot,
+      const nextLayout = splitLayoutAtPath(
+        s.layout,
+        sourceContainerId,
         newContainerId,
-        (id) =>
-          slotForContainerKind(
-            nextWorkspace.containers[id].tabs[0].kind as PanelKind
-          )
+        axis,
+        insert
       );
 
       return {
+        ...s,
         workspace: nextWorkspace,
         layout: nextLayout,
       };
@@ -159,7 +127,7 @@ export default function App() {
   }
 
   /* ======================================
-   * DEBUG DEV
+   * DEBUG
    * ====================================== */
   if (import.meta.env.DEV) {
     (window as any).__workspace = state;
