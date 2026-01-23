@@ -1747,6 +1747,173 @@ Uniquement quand tout le reste est stable :
 
     affordances visuelles (ghost panels, previews).
 
+__________________________________________________________________________________
 
+🎯 Objectif global
+
+    Un shell applicatif clair
+
+    Une entrée sécurisée (login)
+
+    Un layout Mosaic puissant mais encadré
+
+    Un espace utilisateur persistant (workspace, préférences)
+
+🧱 1. Architecture globale proposée
+
+App
+├─ AuthGate (login / logout)
+│
+└─ AppShell
+   ├─ GlobalToolbar (escamotable)
+   ├─ WorkspaceArea
+   │   └─ MosaicLayout (ton existant)
+   └─ Modals / Drawers
+
+👉 Séparation claire des responsabilités
+
+    Le Mosaic n’est plus le root
+
+    Il vit dans un shell applicatif
+
+🔐 2. Page de Login (avant Mosaic)
+Règle
+
+    Aucun accès au layout Mosaic sans session valide
+
+Flux simple
+
+/login
+  └─ succès → /app
+
+Implémentation minimale
+
+    État global authState
+
+    Stockage token/session :
+
+        localStorage (début)
+
+        puis cookie / backend
+
+UX
+
+    Page plein écran
+
+    Pas de toolbar
+
+    Pas de Mosaic
+
+💡 Avantage :
+Tu peux faire évoluer l’auth sans toucher au layout.
+🧭 3. Global Toolbar (escamotable)
+Position recommandée
+
+👉 Top horizontal, au‑dessus du Mosaic
+
+┌───────────────────────────────────────────────┐
+│ ☰  Trading SaaS          User ▼               │
+├───────────────────────────────────────────────┤
+│                                               │
+│              Mosaic Workspace                 │
+│                                               │
+└───────────────────────────────────────────────┘
+
+✨ Comportement
+Escamotable
+
+    Bouton ☰
+
+    3 états possibles :
+
+        Ouverte
+
+        Compacte
+
+        Masquée
+
+➡️ Le Mosaic prend toute la place restante (height dynamique)
+📋 Contenu de la toolbar
+À gauche
+
+    ☰ Toggle toolbar
+
+    Nom app / environnement (Trading SaaS – DEV)
+
+À droite (menu utilisateur)
+
+Menu dropdown :
+
+    👤 Profil
+
+    💾 Save workspace
+
+    ♻ Restore workspace
+
+    ⚙ User preferences
+
+    ❓ Help / Docs
+
+    🚪 Logout
+
+💾 4. Workspace : Save / Restore
+Concept clé
+
+    Le workspace est un objet métier sérialisable
+
+Tu l’as déjà presque :
+
+{
+  workspace: Workspace,
+  layout: MosaicNode
+}
+
+Actions
+
+    Save
+
+        localStorage (v1)
+
+        backend (v2)
+
+    Restore
+
+        dernier workspace
+
+        liste des workspaces sauvegardés
+
+💡 Important
+👉 Le layout Mosaic est une donnée utilisateur, pas une donnée UI volatile.
+⚙️ 5. User Preferences
+
+Exemples :
+
+    thème (clair / sombre)
+
+    taille toolbar
+
+    comportement par défaut des panels
+
+    layout par défaut au login
+
+Stockage
+
+    localStorage → rapide
+
+    backend → multi‑devices
+
+🧠 6. Gestion des Modals / Drawers
+
+Au lieu de polluer le Mosaic :
+
+    Preferences → Drawer droit
+
+    Help → Modal
+
+    Restore workspace → Modal avec preview
+
+➡️ Le Mosaic reste pur et stable
+
+________________________________________________________________
 
 
