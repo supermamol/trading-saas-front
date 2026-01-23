@@ -1,3 +1,282 @@
+🎯 Vision globale de l’application
+
+    Une plateforme de conception, d’exécution et d’analyse de stratégies de trading, orientée graphique, modulaire et interactive.
+
+L’application repose sur 4 piliers :
+
+    Conception visuelle de stratégies (Node‑RED)
+
+    Compilation & exécution (AST → Run → Backtests)
+
+    Exploration des résultats (Runs, Datasources)
+
+    Visualisation interactive (Charts + DnD)
+
+🧱 1. Concepts métier fondamentaux
+1.1 Strategy
+
+👉 Une Strategy est un artefact logique, pas du code.
+
+    Identité : strategyId
+
+    Source de vérité : Node‑RED flow
+
+    Rôle :
+
+        Décrire comment produire des signaux
+
+        Décrire quelles données consommer
+
+        Décrire quels indicateurs / règles appliquer
+
+Important
+
+    Une Strategy ne s’exécute pas directement.
+
+1.2 Node‑RED (Strategy Designer)
+
+Node‑RED est ici :
+
+    🔧 l’éditeur visuel de stratégies
+
+    📐 le DSL graphique de l’application
+
+Nodes spécifiques Trading SaaS
+
+Exemples :
+
+    Ticker
+
+    Datasource
+
+    Resample
+
+    Indicator (EMA, RSI, etc.)
+
+    Condition
+
+    Combine
+
+    Backtest
+
+👉 Le flow Node‑RED est un graphe métier, pas un graphe technique.
+1.3 Deploy (moment clé)
+
+    Deploy = figer une stratégie
+
+Lors du clic Deploy :
+
+    Validation du flow
+
+    Génération d’un AST (Abstract Strategy Tree)
+
+    Versionnement :
+
+        strategyVersion
+
+    La stratégie devient exécutable
+
+💡
+Deploy ne lance rien encore.
+Il rend la stratégie instanciable.
+🧩 2. Run : instancier une stratégie
+2.1 Run (définition)
+
+👉 Un Run est une exécution contextualisée d’une stratégie déployée.
+
+Un Run =
+
+    runId
+
+    strategyId
+
+    strategyVersion
+
+    dateRange (start / end)
+
+    executionParams
+
+    status (pending / running / done / error)
+
+    Une même stratégie peut avoir des dizaines de Runs.
+
+2.2 Création d’un Run
+
+Flux utilisateur :
+
+    Depuis StrategyDetail
+
+    Click Run
+
+    Choix :
+
+        date range
+
+        options (resolution, slippage, etc.)
+
+    Création du Run
+
+Backend
+
+    AST + params → plan d’exécution
+
+    Envoi vers le moteur de backtests
+
+⚙️ 3. Exécution & Backtests
+3.1 Datasources
+
+Une Datasource est une entité clé :
+
+    type : ticker, indicator, derived
+
+    identifiant : AAPL_1m, EMA20, etc.
+
+    provenance :
+
+        provider externe
+
+        calcul interne
+
+        résultat de backtest
+
+👉 Les Datasources sont :
+
+    produites par le Run
+
+    consommables par les Charts
+
+3.2 Backtests
+
+    Définis dans la Strategy
+
+    Exécutés pendant le Run
+
+    Produisent :
+
+        métriques
+
+        séries temporelles
+
+        événements
+
+🧠 4. Panel Run (UI)
+
+Le panel Run est une console de résultats.
+
+Il affiche :
+4.1 Informations Run
+
+    Strategy
+
+    Date range
+
+    Status
+
+4.2 Boutons Datasources
+
+Exemples :
+
+    Ticker AAPL
+
+    Ticker BTCUSDT
+
+    Backtest #1
+
+    Backtest #2
+
+👉 Chaque bouton représente une Datasource exploitable.
+📊 5. Charts (visualisation)
+5.1 Chart = surface de rendu
+
+Un Chart est :
+
+    un container graphique
+
+    capable d’afficher N Datasources
+
+    synchronisé (time axis)
+
+5.2 DnD : Datasource → Chart
+
+👉 Interaction centrale de l’UX
+Geste utilisateur
+
+    Drag d’un bouton Datasource depuis Run
+
+    Drop sur un Chart
+
+Effet métier
+
+    Le Chart :
+
+        récupère la Datasource
+
+        affiche la série correspondante
+
+        adapte le renderer (line, candle, histogram…)
+
+💡
+
+    Le Chart ne connaît pas le Run
+    Il ne connaît que des Datasources.
+
+🔗 6. Relations entre les concepts
+
+Strategy
+   │
+   ├─(Deploy)─> StrategyVersion
+   │
+   └─(Run)─> Run
+             │
+             ├─ Datasource (Ticker)
+             ├─ Datasource (Indicator)
+             └─ Datasource (Backtest)
+                        │
+                        └─ DnD → Chart
+
+🧩 7. Correspondance avec l’UI existante (important)
+Concept métier	Panel
+Strategy list	Strategies
+Strategy	StrategyDetail
+Node‑RED	Nodered
+Run	Run
+Datasource	Bouton dans Run
+Visualisation	Chart
+
+👉 Le Mosaic est le shell, pas la logique.
+🧠 8. Principes architecturaux clés
+1️⃣ Séparation stricte
+
+    Node‑RED → conception
+
+    Run → exécution
+
+    Chart → visualisation
+
+2️⃣ Tout est data‑driven
+
+    Charts consomment des Datasources
+
+    Pas de coupling Run ↔ Chart
+
+3️⃣ UX orientée geste
+
+    DnD = lien sémantique
+
+    Pas de formulaires lourds
+
+4️⃣ Multi‑runs, multi‑charts
+
+    Comparaison
+
+    Superposition
+
+    Analyse exploratoire
+
+
+
+======================================================================
+
 # mosaic-dnd
 
 DnD tab‑centric playground built on top of React and react‑mosaic.
