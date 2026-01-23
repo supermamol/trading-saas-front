@@ -17,7 +17,7 @@ export function StrategyDetailView({
 }: Props) {
   return (
     <>
-      <h3>StrategyDetail {strategyId}</h3>
+      <h3>Détails de la stratégie {strategyId}</h3>
 
       {["C1", "C2", "C3"].map((c) => (
         <button

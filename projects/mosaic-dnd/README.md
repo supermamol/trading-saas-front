@@ -1,277 +1,139 @@
-🎯 Vision globale de l’application
+sequenceDiagram
+    autonumber
+
+    participant User
+    participant Nodered as Panel Node-RED
+    participant StrategyDetail as Panel StrategyDetail
+    participant RunPanel as Panel Run
+    participant Chart as Panel Chart
+    participant System as Trading System
+
+    %% =====================================================
+    %% CU-1 — CONCEPTION DE STRATÉGIE
+    %% =====================================================
+    User->>Nodered: Concevoir la stratégie\n(nodes métier, backtests)
+    Note right of Nodered: Flow en édition\nAucune exécution possible
+
+    %% =====================================================
+    %% CU-2 — ACTIVATION BACKTESTS + DEPLOY
+    %% =====================================================
+    User->>Nodered: Activer / désactiver Backtests
+    User->>Nodered: Deploy
+    Nodered->>System: Valider le flow déployé
+    Note right of Nodered: Flow validé\nBacktests inclus selon activation
+
+    %% =====================================================
+    %% CU-3 — SAUVEGARDE DE STRATÉGIE
+    %% =====================================================
+    User->>StrategyDetail: Sauvegarder la stratégie
+    StrategyDetail->>System: Enregistrer stratégie
+    System->>System: Générer AST
+    System->>System: Créer exécutable
+    Note right of System: Stratégie versionnée\nExécutable prêt
+
+    %% =====================================================
+    %% CU-4 — EXÉCUTION D’UN RUN
+    %% =====================================================
+    User->>RunPanel: Créer un Run\n(spécifier date début / fin)
+    RunPanel->>System: Lancer exécution
+    System->>System: Charger exécutable
+    System->>System: Accéder aux données provider
+    System->>System: Exécuter stratégie + backtests
+    System->>System: Sauvegarder Run + résultats
+    System-->>RunPanel: Datasources disponibles
+
+    %% =====================================================
+    %% CU-5 — VISUALISATION (DnD)
+    %% =====================================================
+    User->>RunPanel: Drag Datasource
+    RunPanel->>Chart: Drop Datasource
+    Chart->>System: Charger données datasource
+    System-->>Chart: Série temporelle
+    Chart-->>User: Affichage graphique
+
+-------------------------------------------------------------------------------
+
+sequenceDiagram
+    autonumber
+
+    participant User
+    participant NoderedUI as Panel Node-RED
+    participant NR_API as Node-RED API
+    participant StrategyUI as Panel StrategyDetail
+    participant RunUI as Panel Run
+    participant ChartUI as Panel Chart
+
+    participant Backend as Backend API
+    participant DB as Database
+    participant Executor as Strategy Executor
+    participant Provider as Market Data Provider
+
+    %% =====================================================
+    %% CU-1 — CONCEPTION DE STRATÉGIE
+    %% =====================================================
+    User->>NoderedUI: Concevoir stratégie\n(nodes métier + backtests)
+    NoderedUI->>NR_API: Edition du flow (local)
+    Note right of NoderedUI: Flow en édition\nNon exécutable
+
+    %% =====================================================
+    %% CU-2 — ACTIVATION BACKTESTS + DEPLOY
+    %% =====================================================
+    User->>NoderedUI: Activer / désactiver Backtests
+    User->>NoderedUI: Deploy
+    NoderedUI->>NR_API: Deploy flow
+    NR_API->>NR_API: Valider et activer le flow
+    Note right of NR_API: Flow déployé\nBacktests inclus selon activation
+
+    %% =====================================================
+    %% CU-3 — SAUVEGARDE DE STRATÉGIE
+    %% =====================================================
+    User->>StrategyUI: Sauvegarder la stratégie
+    StrategyUI->>Backend: POST /strategies/save
+
+    Backend->>NR_API: GET /flows/active
+    NR_API-->>Backend: Flow déployé (structure + backtests)
+
+    Backend->>Backend: Générer AST
+    Backend->>Backend: Créer exécutable
+
+    Backend->>DB: Persist Strategy\n(flow, AST, executable)
+    DB-->>Backend: OK
+
+    Backend-->>StrategyUI: Strategy saved
 
-    Une plateforme de conception, d’exécution et d’analyse de stratégies de trading, orientée graphique, modulaire et interactive.
+    %% =====================================================
+    %% CU-4 — EXÉCUTION D’UN RUN
+    %% =====================================================
+    User->>RunUI: Créer Run\n(date début / fin)
+    RunUI->>Backend: POST /runs/create
 
-L’application repose sur 4 piliers :
+    Backend->>DB: Charger stratégie + exécutable
+    Backend->>Executor: Lancer exécution\n(exécutable, range)
 
-    Conception visuelle de stratégies (Node‑RED)
+    Executor->>Provider: Charger données marché
+    Provider-->>Executor: Séries temporelles
 
-    Compilation & exécution (AST → Run → Backtests)
+    Executor->>Executor: Exécuter stratégie
+    Executor->>Executor: Exécuter backtests inclus
 
-    Exploration des résultats (Runs, Datasources)
+    Executor->>DB: Persist Run + résultats
+    DB-->>Executor: OK
 
-    Visualisation interactive (Charts + DnD)
+    Executor-->>Backend: Run terminé\n(datasources)
+    Backend-->>RunUI: Datasources disponibles
 
-🧱 1. Concepts métier fondamentaux
-1.1 Strategy
+    %% =====================================================
+    %% CU-5 — VISUALISATION (DnD)
+    %% =====================================================
+    User->>RunUI: Drag Datasource
+    RunUI->>ChartUI: Drop Datasource
 
-👉 Une Strategy est un artefact logique, pas du code.
+    ChartUI->>Backend: GET /datasources/{id}
+    Backend->>DB: Charger données datasource
+    DB-->>Backend: Série temporelle
 
-    Identité : strategyId
-
-    Source de vérité : Node‑RED flow
-
-    Rôle :
-
-        Décrire comment produire des signaux
-
-        Décrire quelles données consommer
-
-        Décrire quels indicateurs / règles appliquer
-
-Important
-
-    Une Strategy ne s’exécute pas directement.
-
-1.2 Node‑RED (Strategy Designer)
-
-Node‑RED est ici :
-
-    🔧 l’éditeur visuel de stratégies
-
-    📐 le DSL graphique de l’application
-
-Nodes spécifiques Trading SaaS
-
-Exemples :
-
-    Ticker
-
-    Datasource
-
-    Resample
-
-    Indicator (EMA, RSI, etc.)
-
-    Condition
-
-    Combine
-
-    Backtest
-
-👉 Le flow Node‑RED est un graphe métier, pas un graphe technique.
-1.3 Deploy (moment clé)
-
-    Deploy = figer une stratégie
-
-Lors du clic Deploy :
-
-    Validation du flow
-
-    Génération d’un AST (Abstract Strategy Tree)
-
-    Versionnement :
-
-        strategyVersion
-
-    La stratégie devient exécutable
-
-💡
-Deploy ne lance rien encore.
-Il rend la stratégie instanciable.
-🧩 2. Run : instancier une stratégie
-2.1 Run (définition)
-
-👉 Un Run est une exécution contextualisée d’une stratégie déployée.
-
-Un Run =
-
-    runId
-
-    strategyId
-
-    strategyVersion
-
-    dateRange (start / end)
-
-    executionParams
-
-    status (pending / running / done / error)
-
-    Une même stratégie peut avoir des dizaines de Runs.
-
-2.2 Création d’un Run
-
-Flux utilisateur :
-
-    Depuis StrategyDetail
-
-    Click Run
-
-    Choix :
-
-        date range
-
-        options (resolution, slippage, etc.)
-
-    Création du Run
-
-Backend
-
-    AST + params → plan d’exécution
-
-    Envoi vers le moteur de backtests
-
-⚙️ 3. Exécution & Backtests
-3.1 Datasources
-
-Une Datasource est une entité clé :
-
-    type : ticker, indicator, derived
-
-    identifiant : AAPL_1m, EMA20, etc.
-
-    provenance :
-
-        provider externe
-
-        calcul interne
-
-        résultat de backtest
-
-👉 Les Datasources sont :
-
-    produites par le Run
-
-    consommables par les Charts
-
-3.2 Backtests
-
-    Définis dans la Strategy
-
-    Exécutés pendant le Run
-
-    Produisent :
-
-        métriques
-
-        séries temporelles
-
-        événements
-
-🧠 4. Panel Run (UI)
-
-Le panel Run est une console de résultats.
-
-Il affiche :
-4.1 Informations Run
-
-    Strategy
-
-    Date range
-
-    Status
-
-4.2 Boutons Datasources
-
-Exemples :
-
-    Ticker AAPL
-
-    Ticker BTCUSDT
-
-    Backtest #1
-
-    Backtest #2
-
-👉 Chaque bouton représente une Datasource exploitable.
-📊 5. Charts (visualisation)
-5.1 Chart = surface de rendu
-
-Un Chart est :
-
-    un container graphique
-
-    capable d’afficher N Datasources
-
-    synchronisé (time axis)
-
-5.2 DnD : Datasource → Chart
-
-👉 Interaction centrale de l’UX
-Geste utilisateur
-
-    Drag d’un bouton Datasource depuis Run
-
-    Drop sur un Chart
-
-Effet métier
-
-    Le Chart :
-
-        récupère la Datasource
-
-        affiche la série correspondante
-
-        adapte le renderer (line, candle, histogram…)
-
-💡
-
-    Le Chart ne connaît pas le Run
-    Il ne connaît que des Datasources.
-
-🔗 6. Relations entre les concepts
-
-Strategy
-   │
-   ├─(Deploy)─> StrategyVersion
-   │
-   └─(Run)─> Run
-             │
-             ├─ Datasource (Ticker)
-             ├─ Datasource (Indicator)
-             └─ Datasource (Backtest)
-                        │
-                        └─ DnD → Chart
-
-🧩 7. Correspondance avec l’UI existante (important)
-Concept métier	Panel
-Strategy list	Strategies
-Strategy	StrategyDetail
-Node‑RED	Nodered
-Run	Run
-Datasource	Bouton dans Run
-Visualisation	Chart
-
-👉 Le Mosaic est le shell, pas la logique.
-🧠 8. Principes architecturaux clés
-1️⃣ Séparation stricte
-
-    Node‑RED → conception
-
-    Run → exécution
-
-    Chart → visualisation
-
-2️⃣ Tout est data‑driven
-
-    Charts consomment des Datasources
-
-    Pas de coupling Run ↔ Chart
-
-3️⃣ UX orientée geste
-
-    DnD = lien sémantique
-
-    Pas de formulaires lourds
-
-4️⃣ Multi‑runs, multi‑charts
-
-    Comparaison
-
-    Superposition
-
-    Analyse exploratoire
+    Backend-->>ChartUI: Série temporelle
+    ChartUI-->>User: Affichage graphique
 
 
 

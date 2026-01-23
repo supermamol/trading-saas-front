@@ -1,3 +1,4 @@
+// src/ui/WorkspaceMosaicView.tsx
 import {
   Mosaic,
   MosaicWindow,
@@ -9,6 +10,7 @@ import { activateTab } from "../model/container";
 import { closeTab, detachTab } from "../model/workspace";
 import { ContainerView, type SplitTarget } from "./ContainerView";
 import type { PanelKind, PanelContext } from "../model/workspace.panels";
+import type { VerticalZone, HorizontalSlot } from "./mosaicLayout";
 
 /* ======================================================
  * Types
@@ -25,14 +27,12 @@ type Props = {
   hoveredContainerId: string | null;
   onSplitZoneChange: (split: SplitTarget) => void;
 
-  // ✅ AJOUT
   createPanel: (
     kind: PanelKind,
     context?: PanelContext,
     placement?: { zone: VerticalZone; slot: HorizontalSlot }
   ) => void;
 };
-
 
 /* ======================================================
  * Utils
@@ -74,12 +74,12 @@ export function WorkspaceMosaicView({
   onStateChange,
   hoveredContainerId,
   onSplitZoneChange,
-  createPanel, // ✅
+  createPanel,
 }: Props) {
   const { workspace, layout } = state;
 
   const handleLayoutChange = (next: Layout | null) => {
-    onStateChange(s => ({ ...s, layout: next }));
+    onStateChange((s) => ({ ...s, layout: next }));
   };
 
   const handleRemove = (containerId: string) => {
@@ -106,9 +106,13 @@ export function WorkspaceMosaicView({
       );
     }
 
+    const kindLabel =
+      (container.tabs?.[0]?.kind as string | undefined) ?? "Panel";
+
     return (
       <MosaicWindow<string>
         path={path}
+        title={null} // on ne veut pas le titre automatique (qui réutilise souvent l'id)
         onRemove={() => handleRemove(containerId)}
         renderToolbar={(props) => (
           <div
@@ -121,7 +125,9 @@ export function WorkspaceMosaicView({
               padding: "0 6px",
             }}
           >
-            <span>{`Container ${containerId}`}</span>
+            {/* ✅ Affiche seulement le kind */}
+            <span>{kindLabel}</span>
+
             {props.onRemove && <button onClick={props.onRemove}>×</button>}
           </div>
         )}
@@ -130,7 +136,7 @@ export function WorkspaceMosaicView({
           container={container}
           hoveredContainerId={hoveredContainerId}
           onSplitZoneChange={onSplitZoneChange}
-          createPanel={createPanel}   // ✅ AJOUT
+          createPanel={createPanel}
           onSelectTab={(cid, tabId) =>
             onStateChange((s) => {
               const c = s.workspace.containers[cid];

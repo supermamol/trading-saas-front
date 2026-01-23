@@ -13,7 +13,7 @@ type Props = {
 export function StrategiesView({ createPanel }: Props) {
   return (
     <>
-      <h3>Strategies</h3>
+      <h3>Vos strategies</h3>
 
       {["S1", "S2", "S3"].map((id) => (
         <button

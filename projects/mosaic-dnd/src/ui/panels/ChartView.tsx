@@ -79,16 +79,6 @@ export function ChartView() {
   return (
     <div style={{ display: "flex", flexDirection: "column", height: "100%" }}>
       <div
-        style={{
-          padding: "4px 8px",
-          fontWeight: 600,
-          borderBottom: "1px solid #e5e7eb",
-        }}
-      >
-        Chart
-      </div>
-
-      <div
         ref={containerRef}
         style={{
           flex: 1,

@@ -1,7 +1,7 @@
 export function RunView() {
     return (
       <>
-        <h3>Run</h3>
+        <h3>Paramètres du Run</h3>
         {[
           "Ticker 1",
           "Ticker 2",
